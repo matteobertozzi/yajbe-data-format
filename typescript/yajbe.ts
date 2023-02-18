@@ -484,9 +484,7 @@ class YajbeEncoder extends DataEncoder {
   }
 
   private writeLength(head: number, inlineMax: number, length: number): void {
-    if (length == 0) {
-      this.writer.writeUint8(head);
-    } else if (length <= inlineMax) {
+    if (length <= inlineMax) {
       this.writer.writeUint8(head | length);
     } else {
       const bytes = intBytesWidth(length);
@@ -656,7 +654,10 @@ export class FieldNameWriter {
     } else {
       this.writeFullFieldName(utf8);
     }
-    this.indexedMap.set(key, this.indexedMap.size);
+
+    if (this.indexedMap.size < 0xffff) {
+      this.indexedMap.set(key, this.indexedMap.size);
+    }
     this.lastKey = utf8;
   }
 
