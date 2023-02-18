@@ -37,7 +37,7 @@ for test_name, format, dataset_name in zip(data['Benchmark'], data['Param_format
   format = format.decode()
   test_name = test_name.decode()
   dataset_name = dataset_name.decode()
-  test_name = test_name[len('"tech.dnaco.yajbe.examples.bench.BenchEncoding.'):-1]
+  test_name = test_name[len('"io.github.matteobertozzi.yajbe.examples.bench.BenchEncoding.'):-1]
   dataset_name = dataset_name[dataset_name.rfind('/'):]
   labels.append('%s %s %5s' % (dataset_name, test_name, format))
 

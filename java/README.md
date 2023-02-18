@@ -2,7 +2,7 @@
 
 There is a jackson-dataformat-yajbe library uploaded to the maven repo.
 
-You should include in your pom.xml the yajbe-data-format repository.
+-You should include in your pom.xml the yajbe-data-format repository.
 ```xml
 <repositories>
   <repository>
@@ -10,8 +10,8 @@ You should include in your pom.xml the yajbe-data-format repository.
     <url>https://repo1.maven.org/maven2</url>
   </repository>
   <repository>
-    <id>github</id>
-    <url>https://maven.pkg.github.com/matteo.bertozzi/yajbe-data-format</url>
+    <id>oss.sonatype</id>
+    <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
     <snapshots>
       <enabled>true</enabled>
     </snapshots>
@@ -23,7 +23,7 @@ and include the package as dependency
 ```xml
 <dependencies>
   <dependency>
-    <groupId>tech.dnaco</groupId>
+    <groupId>io.github.matteobertozzi</groupId>
     <artifactId>jackson-dataformat-yajbe</artifactId>
     <version>0.9.0-SNAPSHOT</version>
   </dependency>
@@ -34,7 +34,7 @@ To used YAJBE you can just create an instance of YajbeMapper as you do for the J
 ```java
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
-import tech.dnaco.yajbe.YajbeMapper;
+import io.github.matteobertozzi.yajbe.YajbeMapper;
 
 public class MyTest {
   public record TestObj (int a, float b, String c) {}

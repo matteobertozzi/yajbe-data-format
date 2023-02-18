@@ -21,7 +21,7 @@ YAJBE_VERSION=0.9.0-SNAPSHOT
 mvn clean package -DskipTests
 java -XX:+ShowCodeDetailsInExceptionMessages \
   -cp target/lib/\*:target/yajbe-examples-${YAJBE_VERSION}.jar \
-  tech.dnaco.yajbe.examples.bench.BenchEncoding
+  io.github.matteobertozzi.yajbe.examples.bench.BenchEncoding
 
 ./bench-plot.py results.csv
 open results.png
