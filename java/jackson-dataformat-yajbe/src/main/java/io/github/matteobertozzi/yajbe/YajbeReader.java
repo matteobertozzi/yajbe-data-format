@@ -26,7 +26,7 @@ import java.nio.charset.Charset;
 
 import com.fasterxml.jackson.core.JsonParser.NumberType;
 
-public abstract class YajbeReader {
+abstract class YajbeReader {
   protected abstract int peek() throws IOException;
   protected abstract int read() throws IOException;
   protected abstract String readString(final int n) throws IOException;

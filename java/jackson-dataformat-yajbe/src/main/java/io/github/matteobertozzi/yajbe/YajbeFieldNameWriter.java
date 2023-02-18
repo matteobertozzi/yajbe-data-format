@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-public final class YajbeFieldNameWriter {
+final class YajbeFieldNameWriter {
   private final IndexedHashSet indexedMap = new IndexedHashSet(128);
   private final YajbeWriter stream;
   private byte[] lastKey;

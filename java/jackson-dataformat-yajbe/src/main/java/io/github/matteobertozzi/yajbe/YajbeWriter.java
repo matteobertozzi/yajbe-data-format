@@ -23,7 +23,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 
-public abstract class YajbeWriter {
+abstract class YajbeWriter {
   @FunctionalInterface
   public interface RawBufferWriter {
     int writeItem(byte[] buf, int off, int itemIndex);

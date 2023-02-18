@@ -24,17 +24,21 @@ import java.math.BigInteger;
 import java.util.Arrays;
 
 import com.fasterxml.jackson.core.Base64Variant;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.ObjectCodec;
 import com.fasterxml.jackson.core.base.GeneratorBase;
 import com.fasterxml.jackson.core.io.IOContext;
 
-public class YajbeGenerator extends GeneratorBase {
+/**
+ * {@link JsonGenerator} implementation that writes YAJBE encoded content.
+ */
+final class YajbeGenerator extends GeneratorBase {
   private final YajbeFieldNameWriter fileNameWriter;
   private final YajbeWriter stream;
   private final IOContext ctxt;
   private final byte[] wbuffer;
 
-  protected YajbeGenerator(final IOContext ctxt, final int features, final ObjectCodec codec, final OutputStream stream) {
+  YajbeGenerator(final IOContext ctxt, final int features, final ObjectCodec codec, final OutputStream stream) {
     super(features, codec, null);
     this.ctxt = ctxt;
 

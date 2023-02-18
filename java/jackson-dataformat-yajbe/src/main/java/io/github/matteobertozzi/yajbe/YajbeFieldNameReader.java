@@ -23,7 +23,7 @@ import java.util.Arrays;
 
 import io.github.matteobertozzi.yajbe.YajbeReader.ByteArraySlice;
 
-public final class YajbeFieldNameReader {
+final class YajbeFieldNameReader {
   private final YajbeReader reader;
 
   private Object[] indexedNames = new Object[32];

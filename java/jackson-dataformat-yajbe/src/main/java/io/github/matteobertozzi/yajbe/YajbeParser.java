@@ -33,13 +33,16 @@ import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.core.base.ParserMinimalBase;
 import com.fasterxml.jackson.core.io.IOContext;
 
-public class YajbeParser extends ParserMinimalBase {
+/**
+ * {@link ParserMinimalBase} implementation that reads YAJBE encoded content.
+ */
+final class YajbeParser extends ParserMinimalBase {
   private final YajbeFieldNameReader fieldNameReader;
   private final YajbeReader stream;
   private final ObjectCodec codec;
   private boolean isClosed = false;
 
-  public YajbeParser(final IOContext ctxt, final int features, final ObjectCodec codec, final YajbeReader stream) {
+  YajbeParser(final IOContext ctxt, final int features, final ObjectCodec codec, final YajbeReader stream) {
     super(features);
     this.stream = stream;
     this.fieldNameReader = new YajbeFieldNameReader(stream);

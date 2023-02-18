@@ -19,13 +19,24 @@ package io.github.matteobertozzi.yajbe;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+/**
+ * Specialized {@link ObjectMapper} to use with YAJBE data format.
+ */
 public class YajbeMapper extends ObjectMapper {
   private static final long serialVersionUID = 1L;
 
+  /**
+   * Default constructor, which will construct the default {@link YajbeFactory}
+   */
   public YajbeMapper() {
     this(new YajbeFactory());
   }
 
+  /**
+   * Constructs an instance that uses specified {@link YajbeFactory}
+   * for constructing necessary {@link YajbeParser}s and/or {@link YajbeGenerator}s.
+   * @param factory the {@link YajbeFactory}
+   */
   public YajbeMapper(final YajbeFactory factory) {
     super(factory);
     //enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);

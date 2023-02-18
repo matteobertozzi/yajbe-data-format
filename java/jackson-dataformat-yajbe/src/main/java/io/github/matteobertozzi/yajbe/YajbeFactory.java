@@ -26,6 +26,19 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.io.IOContext;
 
+/**
+ * Factory used for constructing {@link YajbeParser} and {@link YajbeGenerator}
+ * instances; both of which handle
+ * <a href="https://github.com/matteobertozzi/yajbe-data-format">YAJBE</a>
+ * encoded data.
+ * <p>
+ * Extends {@link JsonFactory} mostly so that users can actually use it in place
+ * of regular JSON factory instances.
+ * <p>
+ * Note on using non-byte-based sources/targets (char based, like
+ * {@link java.io.Reader} and {@link java.io.Writer}): these can not be
+ * used; attempt will throw exception.
+ */
 public class YajbeFactory extends JsonFactory {
   private static final long serialVersionUID = 1; // 2.6
 
