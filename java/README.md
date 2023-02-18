@@ -1,8 +1,20 @@
 # YAJBE for Java
 
 There is a jackson-dataformat-yajbe library uploaded to the maven repo.
+[https://repo1.maven.org/maven2/io/github/matteobertozzi/jackson-dataformat-yajbe/](https://repo1.maven.org/maven2/io/github/matteobertozzi/jackson-dataformat-yajbe/)
 
--You should include in your pom.xml the yajbe-data-format repository.
+so you'll just probably need to include the package as dependency in your pom.xml
+```xml
+<dependencies>
+  <dependency>
+    <groupId>io.github.matteobertozzi</groupId>
+    <artifactId>jackson-dataformat-yajbe</artifactId>
+    <version>0.9.1</version>
+  </dependency>
+</dependencies>
+```
+
+In case you are not able to download the jar, you should check your repositories and add them to your pom.xml if needed.
 ```xml
 <repositories>
   <repository>
@@ -11,23 +23,16 @@ There is a jackson-dataformat-yajbe library uploaded to the maven repo.
   </repository>
   <repository>
     <id>oss.sonatype</id>
+    <url>https://s01.oss.sonatype.org/content/repositories/releases</url>
+  </repository>
+  <repository>
+    <id>oss.sonatype.snapshots</id>
     <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
     <snapshots>
       <enabled>true</enabled>
     </snapshots>
   </repository>
 </repositories>
-```
-
-and include the package as dependency
-```xml
-<dependencies>
-  <dependency>
-    <groupId>io.github.matteobertozzi</groupId>
-    <artifactId>jackson-dataformat-yajbe</artifactId>
-    <version>0.9.0-SNAPSHOT</version>
-  </dependency>
-</dependencies>
 ```
 
 To used YAJBE you can just create an instance of YajbeMapper as you do for the JsonMapper. and then use with the writeValue() methods or the readValue() methods as you always do. the only difference is that the write output will be a byte-array and not a string.
