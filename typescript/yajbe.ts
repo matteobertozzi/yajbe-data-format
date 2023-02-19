@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-export function encode(value: unknown, options?: { bufSize?: number }) {
+export function encode(value: unknown, options?: { bufSize?: number, fieldNames?: string[] }) {
   const writer = new InMemoryBytesWriter(options?.bufSize);
-  const encoder = new YajbeEncoder(writer);
+  const encoder = new YajbeEncoder(writer, options?.fieldNames);
   encoder.encodeItem(value);
   encoder.flush();
   return writer.slice();
 }
 
-export function decode<T>(data: Uint8Array): T {
+export function decode<T>(data: Uint8Array, options?: { fieldNames?: string[] }): T {
   const reader = new InMemoryBytesReader(data);
-  const decoder = new YajbeDecoder(reader);
+  const decoder = new YajbeDecoder(reader, options?.fieldNames);
   return decoder.decodeItem() as T;
 }
 
@@ -408,10 +408,10 @@ class YajbeEncoder extends DataEncoder {
   private readonly textEncoder: TextEncoder;
   private readonly writer: BytesWriter;
 
-  constructor(writer: BytesWriter) {
+  constructor(writer: BytesWriter, initialFieldNames?: string[]) {
     super();
     this.textEncoder = new TextEncoder();
-    this.fieldNameWriter = new FieldNameWriter(writer, this.textEncoder);
+    this.fieldNameWriter = new FieldNameWriter(writer, this.textEncoder, initialFieldNames);
     this.writer = writer;
   }
 
@@ -504,9 +504,9 @@ class YajbeDecoder {
   private readonly textDecoder: TextDecoder;
   private readonly buffer: BytesReader;
 
-  constructor(buffer: BytesReader) {
+  constructor(buffer: BytesReader, initialFieldNames?: string[]) {
     this.textDecoder = new TextDecoder();
-    this.fieldNameReader = new FieldNameReader(buffer, this.textDecoder);
+    this.fieldNameReader = new FieldNameReader(buffer, this.textDecoder, initialFieldNames);
     this.buffer = buffer;
   }
 
@@ -625,9 +625,15 @@ export class FieldNameWriter {
   private readonly writer: BytesWriter;
   private lastKey?: Uint8Array;
 
-  constructor(writer: BytesWriter, textEncoder: TextEncoder) {
+  constructor(writer: BytesWriter, textEncoder: TextEncoder, initialFieldNames?: string[]) {
     this.writer = writer;
     this.textEncoder = textEncoder;
+
+    if (initialFieldNames) {
+      for (let i = 0; i < initialFieldNames.length && i < 0xffff; ++i) {
+        this.indexedMap.set(initialFieldNames[i], i);
+      }
+    }
   }
 
   encodeString(key: string): void {
@@ -740,9 +746,16 @@ export class FieldNameReader {
 
   private lastKey: Uint8Array = new Uint8Array(0);
 
-  constructor(reader: BytesReader, textDecoder: TextDecoder) {
+  constructor(reader: BytesReader, textDecoder: TextDecoder, initialFieldNames?: string[]) {
     this.reader = reader;
     this.textDecoder = textDecoder;
+
+    if (initialFieldNames) {
+      const textEncoder = new TextEncoder();
+      for (let i = 0; i < initialFieldNames.length && i < 0xffff; ++i) {
+        this.indexedNames.push(textEncoder.encode(initialFieldNames[i]));
+      }
+    }
   }
 
   decodeString(): string {

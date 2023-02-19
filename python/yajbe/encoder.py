@@ -23,10 +23,13 @@ def int_bytes_width(v: int) -> int:
 
 
 class FieldNameWriter:
-    def __init__(self, encoder) -> None:
+    def __init__(self, encoder, initialFieldNames=None) -> None:
         self._encoder = encoder
         self._indexed_map = {}
         self._last_key = b''
+        if initialFieldNames:
+            for i, name in enumerate(initialFieldNames[:0xffff]):
+                self._indexed_map[name] = i
 
     def encode_string(self, key: str) -> None:
         utf8 = key.encode('utf-8')
@@ -110,9 +113,9 @@ class FieldNameWriter:
 
 
 class YajbeEncoder:
-    def __init__(self, stream: io.BufferedIOBase) -> None:
+    def __init__(self, stream: io.BufferedIOBase, initialFieldNames=None) -> None:
         self._stream = stream
-        self._field_name_writer = FieldNameWriter(self)
+        self._field_name_writer = FieldNameWriter(self, initialFieldNames)
         self._types_map = {
             bool: self.encode_bool,
             int: self.encode_int,
@@ -181,7 +184,7 @@ class YajbeEncoder:
     def encode_object(self, obj: dict) -> None:
         keys = obj.keys()
         self._write_length(0b0011_0000, 10, len(keys))
-        for key in sorted(keys):
+        for key in keys:
             self._field_name_writer.encode_string(key)
             self.encode_item(obj[key])
 
@@ -211,12 +214,12 @@ class YajbeEncoder:
         self._stream.write(buf)
 
 
-def encode_to_stream(stream: io.BufferedIOBase, value) -> None:
-    decoder = YajbeEncoder(stream)
+def encode_to_stream(stream: io.BufferedIOBase, value, initialFieldNames=None) -> None:
+    decoder = YajbeEncoder(stream, initialFieldNames)
     decoder.encode_item(value)
 
 
-def encode_as_bytes(value) -> bytes:
+def encode_as_bytes(value, initialFieldNames=None) -> bytes:
     with io.BytesIO() as stream:
-        encode_to_stream(stream, value)
+        encode_to_stream(stream, value, initialFieldNames)
         return stream.getvalue()

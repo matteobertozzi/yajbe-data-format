@@ -70,6 +70,11 @@ public abstract class BaseYajbeTest {
     assertEquals(input, YAJBE_MAPPER.readValue(enc, classOfT));
   }
 
+  public <T> void assertDecode(final String hexEnc, final Class<T> classOfT, final T input) throws IOException {
+    final byte[] enc = HexFormat.of().parseHex(hexEnc);
+    assertEquals(input, YAJBE_MAPPER.readValue(enc, classOfT));
+  }
+
   public <T> void assertArrayEncodeDecode(final T[] input, final Class<T[]> classOfT, final String expectedEnc) throws IOException {
     final byte[] enc = YAJBE_MAPPER.writeValueAsBytes(input);
     assertHexEquals(expectedEnc, enc);

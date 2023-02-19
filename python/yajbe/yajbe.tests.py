@@ -3,7 +3,7 @@
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
 # The ASF licenses this file to You under the Apache License, Version 2.0
-# (the "License"); you may not use this file except in compliance with
+# (the "License") you may not use this file except in compliance with
 # the License.  You may obtain a copy of the License at
 #
 #    http://www.apache.org/licenses/LICENSE-2.0
@@ -162,6 +162,28 @@ class TestYajbe(unittest.TestCase):
         self.assertDecode("3f816140836f626a3fa041a1000101", {'a': 1, 'obj': {'a': 2, 'obj': None}})
         self.assertDecode("3f816140836f626a3fa041a13fa042a100010101",
                           {'a': 1, 'obj': {'a': 2, 'obj': {'a': 3, 'obj': None}}})
+
+    def test_map_provided_fields(self):
+        INITIAL_FIELDS = ["hello", "world"]
+
+        input = {'world': 2, 'hello': 1}
+
+        # encode/decode with fields already present in the map. the names will not be in the encoded data
+        enc = encode_as_bytes(input, INITIAL_FIELDS)
+        self.assertEqual(bytes.fromhex("32a141a040"), enc)
+        dec = decode_bytes(enc, INITIAL_FIELDS)
+        self.assertEqual(input, dec)
+        decx = decode_bytes(bytes.fromhex("3fa141a04001"), INITIAL_FIELDS)
+        self.assertEqual(input, decx)
+
+        # encode/decode adding a fields not in the base list
+        input['something new'] = 3
+        enc2 = encode_as_bytes(input, INITIAL_FIELDS)
+        self.assertEqual(bytes.fromhex("33a141a0408d736f6d657468696e67206e657742"), enc2)
+        dec2 = decode_bytes(enc2, INITIAL_FIELDS)
+        self.assertEqual(input, dec2)
+        dec2x = decode_bytes(bytes.fromhex("3fa141a0408d736f6d657468696e67206e65774201"), INITIAL_FIELDS)
+        self.assertEqual(input, dec2x)
 
     def test_data_set_encode_decode(self):
         import json

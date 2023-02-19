@@ -34,6 +34,21 @@ final class YajbeFieldNameReader {
     this.reader = reader;
   }
 
+  void setInitialFieldNames(final String[] names) {
+    if (indexedNameCount != 0) {
+      throw new UnsupportedOperationException("field names already added");
+    }
+
+    if (indexedNames.length <= (names.length * 2)) {
+      indexedNames = Arrays.copyOf(names, names.length * 2);
+    }
+
+    for (int i = 0; i < names.length; ++i) {
+      indexedNames[indexedNameCount++] = new ByteArraySlice(names[i].getBytes(StandardCharsets.UTF_8));
+      indexedNames[indexedNameCount++] = names[i];
+    }
+  }
+
   public String read() throws IOException {
     final int head = this.reader.read();
     return switch ((head >> 5) & 0b111) {

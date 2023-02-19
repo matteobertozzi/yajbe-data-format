@@ -19,10 +19,13 @@ import io
 
 
 class FieldNameReader:
-    def __init__(self, decoder) -> None:
+    def __init__(self, decoder, initialFieldNames=None) -> None:
         self._decoder = decoder
         self._indexed_names = []
         self._last_key = b''
+        if initialFieldNames:
+            for name in initialFieldNames[:0xffff]:
+                self._indexed_names.append(name.encode('utf-8'))
 
     def decode_string(self) -> str:
         head = self._decoder._read_byte()
@@ -78,9 +81,9 @@ class FieldNameReader:
 
 
 class YajbeDecoder:
-    def __init__(self, stream: io.BufferedReader) -> None:
+    def __init__(self, stream: io.BufferedReader, initialFieldNames=None) -> None:
         self._stream = stream
-        self._field_name_reader = FieldNameReader(self)
+        self._field_name_reader = FieldNameReader(self, initialFieldNames)
 
     def decode_item(self):
         head = self._read_byte()
@@ -205,14 +208,14 @@ class YajbeDecoder:
         return value
 
 
-def decode_stream(stream: io.BufferedReader):
+def decode_stream(stream: io.BufferedReader, initialFieldNames=None):
     if not isinstance(stream, io.BufferedReader):
         raise Exception('expected a buffered stream')
 
-    decoder = YajbeDecoder(stream)
+    decoder = YajbeDecoder(stream, initialFieldNames)
     return decoder.decode_item()
 
 
-def decode_bytes(data: bytes):
+def decode_bytes(data: bytes, initialFieldNames=None):
     with io.BufferedReader(io.BytesIO(data)) as stream:
-        return decode_stream(stream)
+        return decode_stream(stream, initialFieldNames)

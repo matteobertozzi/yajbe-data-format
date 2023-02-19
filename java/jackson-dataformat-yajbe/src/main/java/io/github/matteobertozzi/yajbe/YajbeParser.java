@@ -49,6 +49,10 @@ final class YajbeParser extends ParserMinimalBase {
     this.codec = codec;
   }
 
+  void setInitialFieldNames(final String[] names) {
+    fieldNameReader.setInitialFieldNames(names);
+  }
+
   @Override
   public void close() {
     if (isClosed) return;
@@ -61,10 +65,10 @@ final class YajbeParser extends ParserMinimalBase {
     return isClosed;
   }
 
-  private int[] stackBlocks = new int[32]; // fields/length
+  private long[] stackBlocks = new long[32]; // fields/length
   private int stackSize = 0;
 
-  private void startBlock(final int fields, final int length) {
+  private void startBlock(final long fields, final long length) {
     if (stackSize == stackBlocks.length) {
       stackBlocks = Arrays.copyOf(stackBlocks, stackSize + 16);
     }
@@ -79,7 +83,7 @@ final class YajbeParser extends ParserMinimalBase {
   }
 
   private boolean nextIsObjectField() throws IOException {
-    final int blockObj = stackBlocks[stackSize - 2]++;
+    final long blockObj = stackBlocks[stackSize - 2]++;
     return blockObj >= 0 && ((blockObj & 1) == 0) && stream.peek() != 0b0000000_1;
   }
 
@@ -106,10 +110,10 @@ final class YajbeParser extends ParserMinimalBase {
       stream.decodeInt(head);
       return _currToken = JsonToken.VALUE_NUMBER_INT;
     } else if ((head & 0b0011_0000) == 0b0011_0000) {
-      startBlock(0, stream.readItemCount(head));
+      startBlock(0, 2L * stream.readItemCount(head));
       return _currToken = JsonToken.START_OBJECT;
     } else if ((head & 0b0010_0000) == 0b0010_0000) {
-      startBlock(Integer.MIN_VALUE, stream.readItemCount(head));
+      startBlock(Long.MIN_VALUE, stream.readItemCount(head));
       return _currToken = JsonToken.START_ARRAY;
     } else if ((head & 0b000001_00) == 0b000001_00) {
       stream.decodeFloat(head);

@@ -30,6 +30,16 @@ final class YajbeFieldNameWriter {
     this.stream = stream;
   }
 
+  void setInitialFieldNames(final String[] names) {
+    if (indexedMap.size != 0) {
+      throw new UnsupportedOperationException("field names already added");
+    }
+
+    for (int i = 0; i < names.length && i < 0xffff; ++i) {
+      indexedMap.add(names[i]);
+    }
+  }
+
   public void write(final String key) throws IOException {
     final byte[] utf8 = key.getBytes(StandardCharsets.UTF_8);
 

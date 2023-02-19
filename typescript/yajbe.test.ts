@@ -201,6 +201,7 @@ Deno.test("array.testSimple", () => {
   assertEncodeDecode([], "20");
   assertEncodeDecode(newIntArray(0, 0), "20");
   assertEncodeDecode(newIntArray(1, 1), "2140");
+  assertEncodeDecode(newIntArray(2, 2), "224141");
   assertEncodeDecode(newIntArray(10, 0), "2a60606060606060606060");
   assertEncodeDecode(newIntArray(11, 0), "2b0b6060606060606060606060");
   assertEncodeDecode(newIntArray(0xff, 0), "2bff" + "60".repeat(0xff));
@@ -218,6 +219,7 @@ Deno.test("map.testSimple", () => {
   assertEncodeDecode({"a": [1, 2, 3]}, "31816123404142");
   assertEncodeDecode({"a": {"l": [1, 2, 3]}}, "31816131816c23404142");
   assertEncodeDecode({"a": {"l": {"x": 1}}}, "31816131816c31817840");
+  assertEncodeDecode({"a": 1, "b": 2}, "32816140816241");
 
   assertDecode("3f81614001", {"a": 1});
   assertDecode("3f8161c2764101", {"a": "vA"});
@@ -228,6 +230,34 @@ Deno.test("map.testSimple", () => {
   assertDecode("3f816140836f626a0001", {a: 1, obj: null});
   assertDecode("3f816140836f626a3fa041a1000101", {a: 1, obj: {a: 2, obj: null}});
   assertDecode("3f816140836f626a3fa041a13fa042a100010101", {a: 1, obj: {a: 2, obj: {a: 3, obj: null}}});
+});
+
+Deno.test("map.testProvidedFields", () => {
+  const INITIAL_FIELDS = ["hello", "world"];
+  const options = { fieldNames: INITIAL_FIELDS };
+
+  const input = new Map();
+  input.set('world', 2);
+  input.set('hello', 1);
+
+  // encode/decode with fields already present in the map. the names will not be in the encoded data
+  const obj = Object.fromEntries(input.entries());
+  const enc = YAJBE.encode(input, options);
+  assertEquals("32a141a040", encode16(enc));
+  const dec = YAJBE.decode(enc, options);
+  assertEquals(obj, dec);
+  const decx = YAJBE.decode(decode16("3fa141a04001"), options);
+  assertEquals(obj, decx);
+
+  // encode/decode adding a fields not in the base list
+  input.set('something new', 3);
+  const obj2 = Object.fromEntries(input.entries());
+  const enc2 = YAJBE.encode(input, options);
+  assertEquals("33a141a0408d736f6d657468696e67206e657742", encode16(enc2));
+  const dec2 = YAJBE.decode(enc2, options);
+  assertEquals(obj2, dec2);
+  const dec2x = YAJBE.decode(decode16("3fa141a0408d736f6d657468696e67206e65774201"), options);
+  assertEquals(obj2, dec2x);
 });
 
 function testFieldNamesEncodeDecode(fieldNames: string[], expectedHex: string): void {

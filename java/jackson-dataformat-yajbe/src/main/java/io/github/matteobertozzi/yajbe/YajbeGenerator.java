@@ -47,6 +47,10 @@ final class YajbeGenerator extends GeneratorBase {
     this.fileNameWriter = new YajbeFieldNameWriter(this.stream);
   }
 
+  void setInitialFieldNames(final String[] names) {
+    fileNameWriter.setInitialFieldNames(names);
+  }
+
   @Override
   public void close() throws IOException {
     flush();

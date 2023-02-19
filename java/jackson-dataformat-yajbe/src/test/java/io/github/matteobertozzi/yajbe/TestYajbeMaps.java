@@ -21,11 +21,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+
+import com.fasterxml.jackson.databind.cfg.ContextAttributes;
 
 public class TestYajbeMaps extends BaseYajbeTest {
   record DataObject (int a, DataObject obj) {}
@@ -45,6 +48,35 @@ public class TestYajbeMaps extends BaseYajbeTest {
     assertEncodeDecode(new DataObject(1, null), DataObject.class, "3f816140836f626a0001");
     assertEncodeDecode(new DataObject(1, new DataObject(2, null)), DataObject.class, "3f816140836f626a3fa041a1000101");
     assertEncodeDecode(new DataObject(1, new DataObject(2, new DataObject(3, null))), DataObject.class, "3f816140836f626a3fa041a13fa042a100010101");
+
+    assertDecode("32816140816241", Map.class, Map.of("a", 1, "b", 2));
+  }
+
+  @Test
+  public void testProvidedFields() throws IOException {
+    final ContextAttributes attrs = ContextAttributes.getEmpty()
+      .withSharedAttribute(YajbeMapper.CONFIG_MAP_FIELD_NAMES, new String[] { "hello", "world" });
+
+    final LinkedHashMap<String, Integer> input = new LinkedHashMap<>();
+    input.put("world", 2);
+    input.put("hello", 1);
+
+    // encode/decode with fields already present in the map. the names will not be in the encoded data
+    final byte[] enc = YAJBE_MAPPER.writer(attrs).writeValueAsBytes(input);
+    assertEquals("3fa141a04001", HexFormat.of().formatHex(enc));
+    final Object dec = YAJBE_MAPPER.reader(attrs).readValue(enc, LinkedHashMap.class);
+    assertEquals(input, dec);
+    final Object decx = YAJBE_MAPPER.reader(attrs).readValue(HexFormat.of().parseHex("32a141a040"), LinkedHashMap.class);
+    assertEquals(input, decx);
+
+    // encode/decode adding a fields not in the base list
+    input.put("something new", 3);
+    final byte[] enc2 = YAJBE_MAPPER.writer(attrs).writeValueAsBytes(input);
+    assertEquals("3fa141a0408d736f6d657468696e67206e65774201", HexFormat.of().formatHex(enc2));
+    final Object dec2 = YAJBE_MAPPER.reader(attrs).readValue(enc2, LinkedHashMap.class);
+    assertEquals(input, dec2);
+    final Object dec2x = YAJBE_MAPPER.reader(attrs).readValue(HexFormat.of().parseHex("33a141a0408d736f6d657468696e67206e657742"), LinkedHashMap.class);
+    assertEquals(input, dec2x);
   }
 
   @Test

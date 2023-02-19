@@ -44,6 +44,7 @@ public class TestYajbeArrays extends BaseYajbeTest {
 
     assertArrayEncodeDecode(new int[0], "20");
     assertArrayEncodeDecode(new int[] { 1 }, "2140");
+    assertArrayEncodeDecode(new int[] { 2, 2 }, "224141");
     assertArrayEncodeDecode(new int[10], "2a60606060606060606060");
     assertArrayEncodeDecode(new int[11], "2b0b6060606060606060606060");
     assertArrayEncodeDecode(new int[0xff], "2bff" + "60".repeat(0xff));
