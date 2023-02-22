@@ -6,7 +6,7 @@
 
   <groupId>io.github.matteobertozzi</groupId>
   <artifactId>jackson-dataformat-yajbe</artifactId>
-  <version>0.9.3-SNAPSHOT</version>
+  <version>0.9.3</version>
 
   <name>jackson-dataformat-yajbe</name>
   <description>YAJBE is a compact binary data format built to be a drop-in replacement for JSON (JavaScript Object Notation).</description>
