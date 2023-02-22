@@ -17,23 +17,20 @@
 
 package io.github.matteobertozzi.yajbe.examples.bench;
 
-import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
-
-import io.github.matteobertozzi.yajbe.YajbeMapper;
-import io.github.matteobertozzi.yajbe.examples.util.ExamplesUtil;
+import io.github.matteobertozzi.yajbe.examples.util.AbstractTestEncodeDecode;
 import io.github.matteobertozzi.yajbe.examples.util.HumansTableView;
 
-public class TestArrayEncodeDecode {
-  private static final ObjectMapper YAJBE_MAPPER = ExamplesUtil.newObjectMapper(new YajbeMapper());
-  private static final ObjectMapper JSON_MAPPER = ExamplesUtil.newObjectMapper(new JsonMapper());
-  private static final ObjectMapper CBOR_MAPPER = ExamplesUtil.newObjectMapper(new CBORMapper());
+public class TestArrayEncodeDecode extends AbstractTestEncodeDecode {
+  private static final Random rand = new Random();
 
   public static int[] zeroIntBlock() {
     final int[] block = new int[2 << 20];
@@ -43,7 +40,6 @@ public class TestArrayEncodeDecode {
 
   public static int[] randInlineIntBlock() {
     final int[] block = new int[2 << 20];
-    final Random rand = new Random();
     for (int i = 0; i < block.length; ++i) {
       block[i] = rand.nextInt(-23, 25);
     }
@@ -52,7 +48,6 @@ public class TestArrayEncodeDecode {
 
   public static int[] randIntBlock() {
     final int[] block = new int[2 << 20];
-    final Random rand = new Random();
     for (int i = 0; i < block.length; ++i) {
       final int w = 1 + rand.nextInt(0, 4);
       final int v = rand.nextInt(0, Math.toIntExact(Math.round(Math.pow(2, (w << 3) - 1) - 1)));
@@ -63,13 +58,78 @@ public class TestArrayEncodeDecode {
 
   private static long[] randLongBlock() {
     final long[] block = new long[1 << 20];
-    final Random rand = new Random();
     for (int i = 0; i < block.length; ++i) {
       final int w = 1 + rand.nextInt(0, 8);
       final long v = rand.nextLong(0, Math.round(Math.pow(2, (w << 3) - 1) - 1));
       block[i] = rand.nextBoolean() ? v : -v;
     }
     return block;
+  }
+
+  private static float[] randFloatBlock() {
+    final float[] block = new float[2 << 20];
+    for (int i = 0; i < block.length; ++i) {
+      block[i] = rand.nextFloat();
+    }
+    return block;
+  }
+
+  private static double[] randDoubleBlock() {
+    final double[] block = new double[1 << 20];
+    for (int i = 0; i < block.length; ++i) {
+      block[i] = rand.nextDouble();
+    }
+    return block;
+  }
+
+  record DataObject (boolean boolValue, int intValue, long longValue, float floatValue, double doubleValue, String strValue, List<DataObject> items) {}
+  private static DataObject[] randDataObjects() {
+    final DataObject[] block = new DataObject[128];
+    for (int i = 0; i < block.length; ++i) {
+      block[i] = randDataObject(0);
+    }
+    return block;
+  }
+
+  private static DataObject randDataObject(final int level) {
+    final int nitems = level < 9 && rand.nextBoolean() ? 1 + rand.nextInt(9) : 0;
+    final ArrayList<DataObject> items = new ArrayList<>(nitems);
+    for (int i = 0; i < nitems; ++i) {
+      items.add(randDataObject(level + 1));
+    }
+
+    return new DataObject(rand.nextBoolean(),
+      rand.nextInt(), rand.nextLong(),
+      rand.nextFloat(), rand.nextDouble(),
+      "hello",
+      (nitems > 0 ? items : List.of())
+    );
+  }
+
+  private static ArrayList<Map<String, Object>> randMapObjects() {
+    final int NITEMS = 128;
+    final ArrayList<Map<String, Object>> block = new ArrayList<>(NITEMS);
+    for (int i = 0; i < NITEMS; ++i) {
+      block.add(randMapObject(0));
+    }
+    return block;
+  }
+
+  private static Map<String, Object> randMapObject(final int level) {
+    final int nitems = level < 9 && rand.nextBoolean() ? 1 + rand.nextInt(9) : 0;
+    final ArrayList<Map<String, Object>> items = new ArrayList<>(nitems);
+    for (int i = 0; i < nitems; ++i) {
+      items.add(randMapObject(level + 1));
+    }
+
+    return Map.of("boolValue", rand.nextBoolean(),
+      "intValue", 0,
+      //"longValue", rand.nextLong(),
+      //"floatValue", rand.nextFloat(),
+      //"doubleValue", rand.nextDouble(),
+      //"strValue", "hello",
+      "items", (nitems > 0 ? items : List.of())
+    );
   }
 
   private static String[] randStringBlock() {
@@ -80,64 +140,22 @@ public class TestArrayEncodeDecode {
     return block;
   }
 
-  record TestData (String name, Class<?> classOfInput, Object input) {}
-
-  public static Object encodeDecode(final ObjectMapper mapper, final Object input, final Class<?> classOfInput) throws IOException {
-    final byte[] enc = mapper.writeValueAsBytes(input);
-    return mapper.readValue(enc, classOfInput);
-  }
-
-
-  public static long runEncodeDecodeBench(final ObjectMapper mapper, final int nruns, final TestData data) throws Exception {
-    final String label = mapper.getFactory().getFormatName() + " encode/decode " + data.name();
-    return ExamplesUtil.runBench(label, nruns, () -> encodeDecode(mapper, data.input(), data.classOfInput()));
-  }
-
   public static void main(final String[] args) throws Exception {
-    final TestData[] testData = new TestData[] {
+    final List<TestData> testData = List.of(
       new TestData("zero[2M]", int[].class, zeroIntBlock()),
       new TestData("inlineInt[2M]", int[].class, randInlineIntBlock()),
       new TestData("int[2M]", int[].class, randIntBlock()),
       new TestData("long[1M]", long[].class, randLongBlock()),
+      new TestData("float[2M]", float[].class, randFloatBlock()),
+      new TestData("double[1M]", double[].class, randDoubleBlock()),
       new TestData("string[1M]", String[].class, randStringBlock()),
-    };
+      new TestData("object[1k]", DataObject[].class, randDataObjects()),
+      new TestData("map[1k]", Map[].class, randMapObjects())
+    );
 
-    final HumansTableView results = new HumansTableView();
-    results.addColumn("test", null);
-    results.addColumn("JSON Size", v -> ExamplesUtil.humanSize(((Number)v).longValue()));
-    results.addColumn("CBOR Size", v -> ExamplesUtil.humanSize(((Number)v).longValue()));
-    results.addColumn("Yajbe Size", v -> ExamplesUtil.humanSize(((Number)v).longValue()));
-    results.addColumn("JSON ops/sec", v -> ExamplesUtil.humanRate(((Number)v).longValue()));
-    results.addColumn("CBOR ops/sec", v -> ExamplesUtil.humanRate(((Number)v).doubleValue()));
-    results.addColumn("Yajbe ops/sec", v -> ExamplesUtil.humanRate(((Number)v).doubleValue()));
-    results.addColumn("JSON time", v -> ExamplesUtil.humanTimeNanos(((Number)v).longValue()));
-    results.addColumn("CBOR time", v -> ExamplesUtil.humanTimeNanos(((Number)v).longValue()));
-    results.addColumn("Yajbe time", v -> ExamplesUtil.humanTimeNanos(((Number)v).longValue()));
-
-    for (final TestData data: testData) {
-      final int NRUNS = 100;
-
-      final byte[] jsonEnc = JSON_MAPPER.writeValueAsBytes(data.input());
-      final byte[] cborEnc = CBOR_MAPPER.writeValueAsBytes(data.input());
-      final byte[] yajbeEnc = YAJBE_MAPPER.writeValueAsBytes(data.input());
-
-      final long jsonElapsed = runEncodeDecodeBench(JSON_MAPPER, NRUNS, data);
-      final long cborElapsed = runEncodeDecodeBench(CBOR_MAPPER, NRUNS, data);
-      final long yajbeElapsed = runEncodeDecodeBench(YAJBE_MAPPER, NRUNS, data);
-
-      results.addRow(data.name(),
-        jsonEnc.length,
-        cborEnc.length,
-        yajbeEnc.length,
-        (double)NRUNS / (jsonElapsed / 1000000000.0),
-        (double)NRUNS / (cborElapsed / 1000000000.0),
-        (double)NRUNS / (yajbeElapsed / 1000000000.0),
-        jsonElapsed,
-        cborElapsed,
-        yajbeElapsed
-      );
-    }
-
+    //final HumansTableView results = runSeparateEncodeDecode(testData);
+    final HumansTableView results = runEncodeDecode(testData);
     System.out.println(results.addHumanView(new StringBuilder()));
+    Files.writeString(Path.of("test-array.csv"), results.toCsv());
   }
 }

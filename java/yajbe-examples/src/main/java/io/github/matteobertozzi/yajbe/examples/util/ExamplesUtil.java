@@ -28,6 +28,7 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
@@ -63,6 +64,11 @@ public final class ExamplesUtil {
 
     // mapper.setAnnotationIntrospector(new ExtentedAnnotationIntrospector());
     return mapper;
+  }
+
+  public static JsonNode encodeDecode(final ObjectMapper mapper, final Object input) throws IOException {
+    final byte[] enc = mapper.writeValueAsBytes(input);
+    return mapper.readTree(enc);
   }
 
   // ===============================================================================================
@@ -101,6 +107,21 @@ public final class ExamplesUtil {
     System.out.printf("[BENCH] %20s - %s runs took %s %s%n",
         name, humanCount(count), humanTimeNanos(elapsed), humanRate(count, elapsed, TimeUnit.NANOSECONDS));
     return elapsed;
+  }
+
+  public static long runDecodeBench(final ObjectMapper mapper, final int nruns, final String testLabel, final byte[] enc) throws Exception {
+    final String label = mapper.getFactory().getFormatName() + " decode " + testLabel;
+    return runBench(label, nruns, () -> mapper.readTree(enc));
+  }
+
+  public static long runEncodeBench(final ObjectMapper mapper, final int nruns, final String testLabel, final Object obj) throws Exception {
+    final String label = mapper.getFactory().getFormatName() + " encode " + testLabel;
+    return runBench(label, nruns, () -> mapper.writeValueAsBytes(obj));
+  }
+
+  public static long runEncodeDecodeBench(final ObjectMapper mapper, final int nruns, final String testLabel, final Object obj) throws Exception {
+    final String label = mapper.getFactory().getFormatName() + " encode/decode " + testLabel;
+    return runBench(label, nruns, () -> encodeDecode(mapper, obj));
   }
 
   // ===============================================================================================
