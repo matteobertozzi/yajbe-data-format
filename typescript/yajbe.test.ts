@@ -220,6 +220,8 @@ Deno.test("map.testSimple", () => {
   assertEncodeDecode({"a": {"l": [1, 2, 3]}}, "31816131816c23404142");
   assertEncodeDecode({"a": {"l": {"x": 1}}}, "31816131816c31817840");
   assertEncodeDecode({"a": 1, "b": 2}, "32816140816241");
+  assertEncodeDecode({"a": 1, "b": 2, "c": 3}, "33816140816241816342");
+  assertEncodeDecode({"a": 1, "b": 2, "c": 3, "d": 4}, "34816140816241816342816443");
 
   assertDecode("3f81614001", {"a": 1});
   assertDecode("3f8161c2764101", {"a": "vA"});
@@ -230,6 +232,11 @@ Deno.test("map.testSimple", () => {
   assertDecode("3f816140836f626a0001", {a: 1, obj: null});
   assertDecode("3f816140836f626a3fa041a1000101", {a: 1, obj: {a: 2, obj: null}});
   assertDecode("3f816140836f626a3fa041a13fa042a100010101", {a: 1, obj: {a: 2, obj: {a: 3, obj: null}}});
+});
+
+Deno.test("map.testStack", () => {
+  const x = {aaa:1, bbb:{k:10}, ccc:2.3, ddd:['a', 'b'], eee:['a', {k:10}, 'b'], fff:{a:{k:['z', 'd']}}, ggg:'foo'};
+  assertEncodeDecode(x, "3783616161408362626231816b49836363630666666666666602408364646422c161c1628365656523c16131a249c1628366666631816131a222c17ac16483676767c3666f6f");
 });
 
 Deno.test("map.testProvidedFields", () => {
