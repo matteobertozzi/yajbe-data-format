@@ -69,9 +69,10 @@ public class TestYajbeDataSets extends BaseYajbeTest {
     throw new IllegalArgumentException("unsupported file " + file);
   }
 
-  private static Stream<File> dataSetPaths() throws IOException {
+  private static Stream<File> dataSetPaths() {
     final ArrayList<File> testFiles = new ArrayList<>();
     fetchTestDataSets(testFiles, new File("../../test-data"));
+    System.out.println("Datasets: " + testFiles);
     return testFiles.stream();
   }
 

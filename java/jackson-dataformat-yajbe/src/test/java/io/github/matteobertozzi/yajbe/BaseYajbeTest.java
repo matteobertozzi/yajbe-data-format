@@ -33,7 +33,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
 public abstract class BaseYajbeTest {
-  public static long RANDOM_SEED = Long.parseLong(System.getProperty("yajbe.test.random.seed", String.valueOf(Math.round(Math.random() * Long.MAX_VALUE))));
+  public static final long RANDOM_SEED = Long.parseLong(System.getProperty("yajbe.test.random.seed", String.valueOf(Math.round(Math.random() * Long.MAX_VALUE))));
 
   public final Random RANDOM;
   public final ObjectMapper YAJBE_MAPPER = newObjectMapper(new YajbeMapper());

@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Set;
 
@@ -41,6 +42,12 @@ public class TestYajbeArrays extends BaseYajbeTest {
     assertEquals(List.of(), YAJBE_MAPPER.readValue(new byte[] { 0x2f, 0x01 }, List.class));
     assertArrayEquals(new Object[0], YAJBE_MAPPER.readValue(new byte[] { 0x20 }, Object[].class));
     assertArrayEquals(new Object[0], YAJBE_MAPPER.readValue(new byte[] { 0x2f, 0x01 }, Object[].class));
+
+    assertArrayDecode("2f01", new int[0]);
+    assertArrayDecode("2f6001", new int[1]);
+    assertArrayDecode("2f606001", new int[2]);
+    assertArrayDecode("2f4001", new int[] { 1 });
+    assertArrayDecode("2f414101", new int[] { 2, 2 });
 
     assertArrayEncodeDecode(new int[0], "20");
     assertArrayEncodeDecode(new int[] { 1 }, "2140");
@@ -97,5 +104,9 @@ public class TestYajbeArrays extends BaseYajbeTest {
     final byte[] enc = YAJBE_MAPPER.writeValueAsBytes(input);
     assertHexEquals(expectedEnc, enc);
     assertArrayEquals(input, YAJBE_MAPPER.readValue(enc, int[].class));
+  }
+
+  public void assertArrayDecode(final String expectedEnc, final int[] input) throws IOException {
+    assertArrayEquals(input, YAJBE_MAPPER.readValue(HexFormat.of().parseHex(expectedEnc), int[].class));
   }
 }

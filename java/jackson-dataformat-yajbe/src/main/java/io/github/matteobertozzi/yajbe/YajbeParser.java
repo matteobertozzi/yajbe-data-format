@@ -65,66 +65,212 @@ final class YajbeParser extends ParserMinimalBase {
     return isClosed;
   }
 
-  private long[] stackBlocks = new long[32]; // fields/length
-  private int stackSize = 0;
+  // ====================================================================================================
+  //  Reader Stack Related
+  //   - array fixed length (STACK_FLAG_ARRAY | length)
+  //   - array eof (STACK_FLAG_ARRAY | STACK_FLAG_EOF)
+  //   - object fixed length (length)
+  //   - object eof (STACK_FLAG_EOF)
+  // stackState used to know if we have to call the stackStateHandler
+  //   - array length = 0
+  //   - array/object eof check
+  //   - object field/value check
+  // ====================================================================================================
+  interface StackStateHandler {
+    JsonToken nextToken() throws IOException;
+  }
 
-  private void startBlock(final long fields, final long length) {
-    if (stackSize == stackBlocks.length) {
-      stackBlocks = Arrays.copyOf(stackBlocks, stackSize + 16);
+  private static final long STACK_FLAG_ARRAY = (1L << 62);
+  private static final long STACK_FLAG_EOF = (1L << 61);
+  private static final long STACK_MASK_LENGTH = 0x7fffffffL;
+  private static final long STACK_MASK_INFO = 0x7fffffff_00000000L;
+
+  private long[] stackItem = new long[32];
+  private int stackSize = -1;
+
+  private StackStateHandler stackStateHandler;
+  private long stackState = Long.MAX_VALUE;
+  private int stackObjectAvail;
+
+  private void stackPush(final long newItem) {
+    if (stackSize != -1) {
+      final long item = stackItem[stackSize];
+      if ((item & STACK_FLAG_EOF) != STACK_FLAG_EOF) {
+        final long length = ((item & STACK_FLAG_ARRAY) == STACK_FLAG_ARRAY) ? stackState : stackObjectAvail;
+        stackItem[stackSize] = (item & STACK_MASK_INFO) | length;
+      }
     }
-    stackBlocks[stackSize++] = fields;
-    stackBlocks[stackSize++] = length;
+
+    if (++stackSize == stackItem.length) {
+      stackItem = Arrays.copyOf(stackItem, stackSize + 16);
+    }
+    stackItem[stackSize] = newItem;
   }
 
-  private JsonToken endBlock() {
-    stackSize -= 2;
-    final boolean isObject = stackBlocks[stackSize] >= 0;
-    return isObject ? JsonToken.END_OBJECT : JsonToken.END_ARRAY;
+  private void stackPop() {
+    if (stackSize-- == 0) {
+      this.stackState = Long.MAX_VALUE;
+      return;
+    }
+
+    final long item = stackItem[stackSize];
+    if ((item & STACK_FLAG_ARRAY) == STACK_FLAG_ARRAY) {
+      if ((item & STACK_FLAG_EOF) == STACK_FLAG_EOF) {
+        this.stackStateHandler = this::stackEofArrayStateHandler;
+        this.stackState = 0;
+      } else {
+        this.stackStateHandler = this::stackFixedArrayStateHandler;
+        this.stackState = (int) (item & STACK_MASK_LENGTH);
+      }
+    } else {
+      if ((item & STACK_FLAG_EOF) == STACK_FLAG_EOF) {
+        this.stackStateHandler = this::stackEofObjectStateHandler;
+      } else {
+        this.stackStateHandler = this::stackFixedObjectStateHandler;
+        this.stackObjectAvail = (int) (item & STACK_MASK_LENGTH);
+      }
+      this.stackState = 0;
+    }
   }
 
-  private boolean nextIsObjectField() throws IOException {
-    final long blockObj = stackBlocks[stackSize - 2]++;
-    return blockObj >= 0 && ((blockObj & 1) == 0) && stream.peek() != 0b0000000_1;
+  // ---------------------------------------------------------------------------
+  //  Reader Stack - Object Related
+  // ---------------------------------------------------------------------------
+  private void startFixedObject(final int length) {
+    stackPush(length);
+    this.stackStateHandler = this::stackFixedObjectStateHandler;
+    this.stackState = 0;
+    this.stackObjectAvail = length;
   }
+
+  private JsonToken stackFixedObjectStateHandler() {
+    this.stackState = 1;
+    if (stackObjectAvail-- != 0) {
+      return JsonToken.FIELD_NAME;
+    }
+
+    stackPop();
+    return JsonToken.END_OBJECT;
+  }
+
+  private void startEofObject() {
+    stackPush(STACK_FLAG_EOF);
+    this.stackStateHandler = this::stackEofObjectStateHandler;
+    this.stackState = 0;
+  }
+
+  private JsonToken stackEofObjectStateHandler() throws IOException {
+    this.stackState = 1;
+    if (stream.peek() != 1) return JsonToken.FIELD_NAME;
+
+    stream.read();
+    stackPop();
+    return JsonToken.END_OBJECT;
+  }
+
+  // ---------------------------------------------------------------------------
+  //  Reader Stack - Array Related
+  // ---------------------------------------------------------------------------
+  private void startFixedArray(final int length) {
+    stackPush(STACK_FLAG_ARRAY | length);
+    this.stackStateHandler = this::stackFixedArrayStateHandler;
+    this.stackState = length;
+  }
+
+  private JsonToken stackFixedArrayStateHandler() {
+    stackPop();
+    return JsonToken.END_ARRAY;
+  }
+
+  private void startEofArray() {
+    stackPush(STACK_FLAG_ARRAY | STACK_FLAG_EOF);
+    this.stackStateHandler = this::stackEofArrayStateHandler;
+    this.stackState = 0;
+  }
+
+  private JsonToken stackEofArrayStateHandler() throws IOException {
+    this.stackState = 0;
+    if (stream.peek() != 1) return null;
+
+    stream.read();
+    stackPop();
+    return JsonToken.END_ARRAY;
+  }
+
+  // =====================================================================================
+  //  NOTE: to avoid too many ifs, we pre-build a map with the tokens.
+  //  so we can find the token just by looking up TOKEN_MAP[head]
+  private static final byte[] TOKEN_MAP = new byte[] {
+    0, -1, 1, 2, 7, 8, 9, 10, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 12,
+    13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 14,
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    4, 4, 4, 4, 4, 4, 4, 4,
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    4, 4, 4, 4, 4, 4, 4, 4,
+    6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+    5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5
+  };
+
+  private static final int TOKEN_NULL         = 0;
+  private static final int TOKEN_FALSE        = 1;
+  private static final int TOKEN_TRUE         = 2;
+  private static final int TOKEN_INT_SMALL    = 3;
+  private static final int TOKEN_INT          = 4;
+  private static final int TOKEN_STRING       = 5;
+  private static final int TOKEN_BYTES        = 6;
+  private static final int TOKEN_FLOAT_VLE    = 7;
+  private static final int TOKEN_FLOAT_32     = 8;
+  private static final int TOKEN_FLOAT_64     = 9;
+  private static final int TOKEN_BIG_DECIMAL  = 10;
+  private static final int TOKEN_ARRAY        = 11;
+  private static final int TOKEN_ARRAY_EOF    = 12;
+  private static final int TOKEN_OBJECT       = 13;
+  private static final int TOKEN_OBJECT_EOF   = 14;
+
+  private static final JsonToken[] JSON_TOKEN_MAP = new JsonToken[] {
+    JsonToken.VALUE_NULL,
+    JsonToken.VALUE_FALSE,
+    JsonToken.VALUE_TRUE,
+    JsonToken.VALUE_NUMBER_INT,       // small int
+    JsonToken.VALUE_NUMBER_INT,       // int
+    JsonToken.VALUE_STRING,           // string
+    JsonToken.VALUE_EMBEDDED_OBJECT,  // bytes
+    JsonToken.VALUE_NUMBER_FLOAT,     // float vle
+    JsonToken.VALUE_NUMBER_FLOAT,     // float32
+    JsonToken.VALUE_NUMBER_FLOAT,     // float64
+    JsonToken.VALUE_NUMBER_FLOAT,     // big decimal
+    JsonToken.START_ARRAY,            // fixed array
+    JsonToken.START_ARRAY,            // eof array
+    JsonToken.START_OBJECT,           // fixed object
+    JsonToken.START_OBJECT,           // eof object
+  };
 
   @Override
   public JsonToken nextToken() throws IOException {
-    if (stackSize != 0) {
-      if (stackBlocks[stackSize - 1]-- == 0) {
-        return _currToken = endBlock();
-      }
-
-      if (nextIsObjectField()) {
-        return _currToken = JsonToken.FIELD_NAME;
+    if (stackState-- == 0) {
+      if ((_currToken = stackStateHandler.nextToken()) != null) {
+        return _currToken;
       }
     }
 
     final int head = stream.read();
-    if ((head & 0b11_000000) == 0b11_000000) {
-      stream.decodeString(head);
-      return _currToken = JsonToken.VALUE_STRING;
-    } else if ((head & 0b10_000000) == 0b10_000000) {
-      stream.decodeBytes(head);
-      return _currToken = JsonToken.VALUE_EMBEDDED_OBJECT;
-    } else if ((head & 0b010_00000) == 0b010_00000) {
-      stream.decodeInt(head);
-      return _currToken = JsonToken.VALUE_NUMBER_INT;
-    } else if ((head & 0b0011_0000) == 0b0011_0000) {
-      startBlock(0, 2L * stream.readItemCount(head));
-      return _currToken = JsonToken.START_OBJECT;
-    } else if ((head & 0b0010_0000) == 0b0010_0000) {
-      startBlock(Long.MIN_VALUE, stream.readItemCount(head));
-      return _currToken = JsonToken.START_ARRAY;
-    } else if ((head & 0b000001_00) == 0b000001_00) {
-      stream.decodeFloat(head);
-      return _currToken = JsonToken.VALUE_NUMBER_FLOAT;
-    } else return switch (head) {
-      case 0b00000000 -> _currToken = JsonToken.VALUE_NULL;
-      case 0b00000001 -> _currToken = endBlock();
-      case 0b00000010 -> _currToken = JsonToken.VALUE_FALSE;
-      case 0b00000011 -> _currToken = JsonToken.VALUE_TRUE;
-      default -> throw new IOException("unsupported head " + Integer.toBinaryString(head));
-    };
+    final int tokenId = TOKEN_MAP[head];
+    switch (tokenId) {
+      case TOKEN_INT_SMALL -> stream.decodeSmallInt(head);
+      case TOKEN_INT -> stream.decodeInt(head);
+      case TOKEN_STRING -> stream.decodeString(head);
+      case TOKEN_BYTES -> stream.decodeBytes(head);
+      case TOKEN_FLOAT_VLE -> stream.decodeFloatVle();
+      case TOKEN_FLOAT_32 -> stream.decodeFloat32();
+      case TOKEN_FLOAT_64 -> stream.decodeFloat64();
+      case TOKEN_BIG_DECIMAL -> stream.decodeBigDecimal();
+      case TOKEN_ARRAY -> startFixedArray(stream.readItemCount(head));
+      case TOKEN_ARRAY_EOF -> startEofArray();
+      case TOKEN_OBJECT -> startFixedObject(stream.readItemCount(head));
+      case TOKEN_OBJECT_EOF -> startEofObject();
+    }
+    return _currToken = JSON_TOKEN_MAP[tokenId];
   }
 
   @Override
@@ -299,5 +445,48 @@ final class YajbeParser extends ParserMinimalBase {
       case BIG_INTEGER -> new BigDecimal(stream.bigInteger());
       case BIG_DECIMAL -> stream.bigDecimal();
     };
+  }
+
+  public static void main(final String[] args) {
+    final int[] tokens = new int[256];
+    for (int i = 0; i <= 0xff; ++i) {
+      final int head = i & 0xff;
+      if ((head & 0b11_000000) == 0b11_000000) {
+        tokens[i] = TOKEN_STRING;
+      } else if ((head & 0b10_000000) == 0b10_000000) {
+        tokens[i] = TOKEN_BYTES;
+      } else if ((head & 0b010_00000) == 0b010_00000) {
+        final int w = head & 0b11111;
+        if (w < 24) {
+          tokens[i] = TOKEN_INT_SMALL;
+        } else {
+          tokens[i] = TOKEN_INT;
+        }
+      } else if ((head & 0b0011_1111) == 0b0011_1111) {
+        tokens[i] = TOKEN_OBJECT_EOF;
+      } else if ((head & 0b0011_0000) == 0b0011_0000) {
+        tokens[i] = TOKEN_OBJECT;
+      } else if ((head & 0b0010_1111) == 0b0010_1111) {
+        tokens[i] = TOKEN_ARRAY_EOF;
+      } else if ((head & 0b0010_0000) == 0b0010_0000) {
+        tokens[i] = TOKEN_ARRAY;
+      } else if ((head & 0b0001_0000) == 0b0001_0000) {
+        tokens[i] = -1;
+      } else if ((head & 0b00001_000) == 0b00001_000) {
+        tokens[i] = -1;
+      } else switch (head) {
+        case 0b00000000 -> tokens[i] = TOKEN_NULL;
+        case 0b00000001 -> tokens[i] = -1;
+        case 0b00000010 -> tokens[i] = TOKEN_FALSE;
+        case 0b00000011 -> tokens[i] = TOKEN_TRUE;
+        case 0b00000100 -> tokens[i] = TOKEN_FLOAT_VLE;
+        case 0b00000101 -> tokens[i] = TOKEN_FLOAT_32;
+        case 0b00000110 -> tokens[i] = TOKEN_FLOAT_64;
+        case 0b00000111 -> tokens[i] = TOKEN_BIG_DECIMAL;
+        default -> throw new IllegalArgumentException("unhandled " + Integer.toBinaryString(i));
+      }
+    }
+
+    System.out.println(Arrays.toString(tokens));
   }
 }

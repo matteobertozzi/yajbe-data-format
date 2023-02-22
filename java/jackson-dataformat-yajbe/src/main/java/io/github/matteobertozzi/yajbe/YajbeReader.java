@@ -117,63 +117,46 @@ abstract class YajbeReader {
     }
   }
 
+  public void decodeSmallInt(final int head) {
+    final boolean signed = (head & 0b011_00000) == 0b011_00000;
+
+    final int w = head & 0b11111;
+    intValue = signed ? -w : (1 + w);
+    numberType = NumberType.INT;
+  }
+
   public void decodeInt(final int head) throws IOException {
     final boolean signed = (head & 0b011_00000) == 0b011_00000;
 
     final int w = head & 0b11111;
-    if (w < 24) {
-      numberType = NumberType.INT;
-      intValue = signed ? -w : (1 + w);
-      return;
-    }
-
     final int width = w - 23;
     final long v = readFixed(width);
     if (v <= Integer.MAX_VALUE) {
-      numberType = NumberType.INT;
       intValue = (int)(signed ? -v : v);
+      numberType = NumberType.INT;
     } else {
-      numberType = NumberType.LONG;
       longValue = signed ? -v : v;
+      numberType = NumberType.LONG;
     }
   }
 
-  private static String printArray(final byte[] buf) {
-    final StringBuilder builder = new StringBuilder();
-    builder.append("[");
-    for (int i = 0; i < buf.length; ++i) {
-      if (i > 0) builder.append(", ");
-      builder.append(buf[i] & 0xff);
-    }
-    builder.append("]");
-    return builder.toString();
+  public void decodeFloatVle() {
+    throw new UnsupportedOperationException("Not implemented decode float16/vle-float");
   }
 
-  public void decodeFloat(final int head) throws IOException {
-    switch (head & 0b11) {
-      case 0b00: {
-        throw new UnsupportedOperationException("Not implemented decode float16/vle-float");
-      }
-      case 0b01: {
-        final int i32 = readFixedInt(4);
-        this.floatValue = Float.intBitsToFloat(i32);
-        this.numberType = NumberType.FLOAT;
-        return;
-      }
-      case 0b10: {
-        final long i64 = readFixed(8);
-        this.doubleValue = Double.longBitsToDouble(i64);
-        this.numberType = NumberType.DOUBLE;
-        return;
-      }
-      case 0b11: {
-        decodeBigDecimal();
-        return;
-      }
-    }
+  public void decodeFloat32() throws IOException {
+    final int i32 = readFixedInt(4);
+    this.floatValue = Float.intBitsToFloat(i32);
+    this.numberType = NumberType.FLOAT;
   }
 
-  private void decodeBigDecimal() throws IOException {
+  public void decodeFloat64() throws IOException {
+    final long i64 = readFixed(8);
+    this.doubleValue = Double.longBitsToDouble(i64);
+    this.numberType = NumberType.DOUBLE;
+  }
+
+  public void decodeBigDecimal() throws IOException {
     final int head = read();
     final boolean signedScale = (head & 0x80) == 0x80;
     final int scaleBytes = 1 + ((head >> 5) & 3);
@@ -202,7 +185,6 @@ abstract class YajbeReader {
   public int readItemCount(final int head) throws IOException {
     final int w = head & 0b1111;
     if (w <= 10) return w;
-    if (w == 0b1111) return Integer.MAX_VALUE;
     return readFixedInt(w - 10);
   }
 

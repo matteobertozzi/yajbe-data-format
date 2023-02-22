@@ -50,6 +50,26 @@ public class TestYajbeMaps extends BaseYajbeTest {
     assertEncodeDecode(new DataObject(1, new DataObject(2, new DataObject(3, null))), DataObject.class, "3f816140836f626a3fa041a13fa042a100010101");
 
     assertDecode("32816140816241", Map.class, Map.of("a", 1, "b", 2));
+    assertDecode("33816140816241816342", Map.class, Map.of("a", 1, "b", 2, "c", 3));
+    assertDecode("34816140816241816342816443", Map.class, Map.of("a", 1, "b", 2, "c", 3, "d", 4));
+    assertDecode("31816123404142", Map.class, Map.of("a", List.of(1, 2, 3)));
+    assertDecode("31816131816c23404142", Map.class, Map.of("a", Map.of("l", List.of(1, 2, 3))));
+    assertDecode("31816131816c31817840", Map.class, Map.of("a", Map.of("l", Map.of("x", 1))));
+  }
+
+  @Test
+  public void testStack() throws IOException {
+    final LinkedHashMap<String, Object> input = new LinkedHashMap<>();
+    input.put("aaa", 1);
+    input.put("bbb", Map.of("k", 10));
+    input.put("ccc", 2.3);
+    input.put("ddd", List.of("a", "b"));
+    input.put("eee", List.of("a", Map.of("k", 10), "b"));
+    input.put("fff", Map.of("a", Map.of("k", List.of("z", "d"))));
+    input.put("ggg", "foo");
+    System.out.println(input);
+    assertEncodeDecode(input, Map.class, "3f8361616140836262623f816b4901836363630666666666666602408364646422c161c1628365656523c1613fa24901c162836666663f81613fa222c17ac164010183676767c3666f6f01");
+    assertDecode("3783616161408362626231816b49836363630666666666666602408364646422c161c1628365656523c16131a249c1628366666631816131a222c17ac16483676767c3666f6f", Map.class, input);
   }
 
   @Test

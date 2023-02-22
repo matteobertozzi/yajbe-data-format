@@ -71,10 +71,10 @@ final class YajbeFieldNameReader {
 
   private String addToIndex(final ByteArraySlice utf8) {
     if (indexedNameCount == indexedNames.length) {
-      indexedNames = Arrays.copyOf(indexedNames, indexedNameCount + 16);
+      indexedNames = Arrays.copyOf(indexedNames, indexedNameCount << 1);
     }
 
-    final String str = new String(utf8.buf(), utf8.off(), utf8.len(), StandardCharsets.UTF_8);
+    final String str = utf8.toString(StandardCharsets.UTF_8);
     indexedNames[indexedNameCount++] = utf8;
     indexedNames[indexedNameCount++] = str;
 
