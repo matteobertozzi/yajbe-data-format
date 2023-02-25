@@ -62,11 +62,12 @@ final class YajbeFieldNameReader {
 
   private int readLength(final int head) throws IOException {
     final int length = (head & 0b000_11111);
-    return switch (length) {
-      case 30 -> reader.read();
-      case 31 -> reader.readFixedInt(2);
-      default -> length;
-    };
+    if (length < 30) return length;
+    if (length == 30) return reader.read() + 29;
+
+    final int b1 = reader.read();
+    final int b2 = reader.read();
+    return 284 + 256 * b1 + b2;
   }
 
   private String addToIndex(final ByteArraySlice utf8) {

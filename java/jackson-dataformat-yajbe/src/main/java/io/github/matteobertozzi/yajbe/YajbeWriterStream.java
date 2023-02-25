@@ -40,11 +40,10 @@ final class YajbeWriterStream extends YajbeWriter {
   @Override
   protected void write(final int v) throws IOException {
     if (wbufOff == wbuf.length) {
-      stream.write(wbuf, 0, wbufOff);
-      wbufOff = 0;
+      rawBufferFlush();
     }
 
-    wbuf[wbufOff++] = (byte) (v & 0xff);
+    wbuf[wbufOff++] = (byte)v;
   }
 
   @Override
@@ -54,7 +53,8 @@ final class YajbeWriterStream extends YajbeWriter {
       stream.write(buf, off, len);
       return;
     }
-    if (len > (buf.length - wbufOff)) {
+
+    if (len > (wbuf.length - wbufOff)) {
       rawBufferFlush();
     }
     System.arraycopy(buf, off, wbuf, wbufOff, len);

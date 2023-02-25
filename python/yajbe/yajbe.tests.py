@@ -32,50 +32,50 @@ class TestYajbe(unittest.TestCase):
 
     def test_int_simple(self):
         # positive ints
-        self.assertEncodeDecode(1, "40")
-        self.assertEncodeDecode(7, "46")
-        self.assertEncodeDecode(24, "57")
-        self.assertEncodeDecode(25, "5819")
-        self.assertEncodeDecode(0xff, "58ff")
-        self.assertEncodeDecode(0xffff, "59ffff")
-        self.assertEncodeDecode(0xffffff, "5affffff")
-        self.assertEncodeDecode(0xffffffff, "5bffffffff")
-        self.assertEncodeDecode(0xffffffffff, "5cffffffffff")
-        self.assertEncodeDecode(0xffffffffffff, "5dffffffffffff")
-        self.assertEncodeDecode(0x1fffffffffffff, "5effffffffffff1f")
-        self.assertEncodeDecode(0xffffffffffffff, "5effffffffffffff")
-        self.assertEncodeDecode(0xfffffffffffffff, "5fffffffffffffff0f")
-        self.assertEncodeDecode(0x7fffffffffffffff, "5fffffffffffffff7f")
+        self.assertEncodeDecode(1, "40");
+        self.assertEncodeDecode(7, "46");
+        self.assertEncodeDecode(24, "57");
+        self.assertEncodeDecode(25, "5800");
+        self.assertEncodeDecode(0xff, "58e6");
+        self.assertEncodeDecode(0xffff, "59e6ff");
+        self.assertEncodeDecode(0xffffff, "5ae6ffff");
+        self.assertEncodeDecode(0xffffffff, "5be6ffffff");
+        self.assertEncodeDecode(0xffffffffff, "5ce6ffffffff");
+        self.assertEncodeDecode(0xffffffffffff, "5de6ffffffffff");
+        self.assertEncodeDecode(0x1fffffffffffff, "5ee6ffffffffff1f");
+        self.assertEncodeDecode(0xffffffffffffff, "5ee6ffffffffffff");
+        self.assertEncodeDecode(0xfffffffffffffff, "5fe6ffffffffffff0f");
+        self.assertEncodeDecode(0x7fffffffffffffff, "5fe6ffffffffffff7f");
 
-        self.assertEncodeDecode(100, "5864")
-        self.assertEncodeDecode(1000, "59e803")
-        self.assertEncodeDecode(1000000, "5a40420f")
-        self.assertEncodeDecode(1000000000000, "5c0010a5d4e8")
-        self.assertEncodeDecode(100000000000000, "5d00407a10f35a")
+        self.assertEncodeDecode(100, "584b");
+        self.assertEncodeDecode(1000, "59cf03");
+        self.assertEncodeDecode(1000000, "5a27420f");
+        self.assertEncodeDecode(1000000000000, "5ce70fa5d4e8");
+        self.assertEncodeDecode(100000000000000, "5de73f7a10f35a");
 
         # negative ints
-        self.assertEncodeDecode(0, "60")
-        self.assertEncodeDecode(-1, "61")
-        self.assertEncodeDecode(-7, "67")
-        self.assertEncodeDecode(-23, "77")
-        self.assertEncodeDecode(-24, "7818")
-        self.assertEncodeDecode(-25, "7819")
-        self.assertEncodeDecode(-0xff, "78ff")
-        self.assertEncodeDecode(-0xffff, "79ffff")
-        self.assertEncodeDecode(-0xffffff, "7affffff")
-        self.assertEncodeDecode(-0xffffffff, "7bffffffff")
-        self.assertEncodeDecode(-0xffffffffff, "7cffffffffff")
-        self.assertEncodeDecode(-0xffffffffffff, "7dffffffffffff")
-        self.assertEncodeDecode(-0x1fffffffffffff, "7effffffffffff1f")
-        self.assertEncodeDecode(-0xffffffffffffff, "7effffffffffffff")
-        self.assertEncodeDecode(-0xfffffffffffffff, "7fffffffffffffff0f")
-        self.assertEncodeDecode(-0x7fffffffffffffff, "7fffffffffffffff7f")
+        self.assertEncodeDecode(0, "60");
+        self.assertEncodeDecode(-1, "61");
+        self.assertEncodeDecode(-7, "67");
+        self.assertEncodeDecode(-23, "77");
+        self.assertEncodeDecode(-24, "7800");
+        self.assertEncodeDecode(-25, "7801");
+        self.assertEncodeDecode(-0xff, "78e7");
+        self.assertEncodeDecode(-0xffff, "79e7ff");
+        self.assertEncodeDecode(-0xffffff, "7ae7ffff");
+        self.assertEncodeDecode(-0xffffffff, "7be7ffffff");
+        self.assertEncodeDecode(-0xffffffffff, "7ce7ffffffff");
+        self.assertEncodeDecode(-0xffffffffffff, "7de7ffffffffff");
+        self.assertEncodeDecode(-0x1fffffffffffff, "7ee7ffffffffff1f");
+        self.assertEncodeDecode(-0xffffffffffffff, "7ee7ffffffffffff");
+        self.assertEncodeDecode(-0xfffffffffffffff, "7fe7ffffffffffff0f");
+        self.assertEncodeDecode(-0x7fffffffffffffff, "7fe7ffffffffffff7f");
 
-        self.assertEncodeDecode(-100, "7864")
-        self.assertEncodeDecode(-1000, "79e803")
-        self.assertEncodeDecode(-1000000, "7a40420f")
-        self.assertEncodeDecode(-1000000000000, "7c0010a5d4e8")
-        self.assertEncodeDecode(-100000000000000, "7d00407a10f35a")
+        self.assertEncodeDecode(-100, "784c");
+        self.assertEncodeDecode(-1000, "79d003");
+        self.assertEncodeDecode(-1000000, "7a28420f");
+        self.assertEncodeDecode(-1000000000000, "7ce80fa5d4e8");
+        self.assertEncodeDecode(-100000000000000, "7de83f7a10f35a");
 
     def test_float_simple(self):
         self.assertDecodeFloat("0500000000", 0.0)
@@ -108,38 +108,43 @@ class TestYajbe(unittest.TestCase):
         self.assertEncodeDecode("a", "c161")
         self.assertEncodeDecode("abc", "c3616263")
         self.assertEncodeDecode("x" * 59, "fb" + "78" * 59)
-        self.assertEncodeDecode("y" * 60, "fc3c" + "79" * 60)
-        self.assertEncodeDecode("y" * 127, "fc7f" + "79" * 127)
-        self.assertEncodeDecode("y" * 0xff, "fcff" + "79" * 255)
-        self.assertEncodeDecode("z" * 0x100, "fd0001" + "7a" * 256)
-        self.assertEncodeDecode("z" * 0xffff, "fdffff" + "7a" * 0xffff)
-        self.assertEncodeDecode("k" * 0xfffff, "feffff0f" + "6b" * 0xfffff)
-        self.assertEncodeDecode("k" * 0xffffff, "feffffff" + "6b" * 0xffffff)
-        self.assertEncodeDecode("k" * 0x1000000, "ff00000001" + "6b" * 0x1000000)
+        self.assertEncodeDecode("y" * 60, "fc01" + "79" * 60)
+        self.assertEncodeDecode("y" * 127, "fc44" + "79" * 127)
+        self.assertEncodeDecode("y" * 0xff, "fcc4" + "79" * 255)
+        self.assertEncodeDecode("z" * 0x100, "fcc5" + "7a" * 256)
+        self.assertEncodeDecode("z" * 314, "fcff" + "7a" * 314)
+        self.assertEncodeDecode("z" * 315, "fd0001" + "7a" * 315)
+        self.assertEncodeDecode("z" * 0xffff, "fdc4ff" + "7a" * 0xffff)
+        self.assertEncodeDecode("k" * 0xfffff, "fec4ff0f" + "6b" * 0xfffff)
+        self.assertEncodeDecode("k" * 0xffffff, "fec4ffff" + "6b" * 0xffffff)
+        self.assertEncodeDecode("k" * 0x1000000, "fec5ffff" + "6b" * 0x1000000)
 
     def test_array_simple(self):
         self.assertDecode("2f01", [])
         self.assertEncodeDecode([], "20")
         self.assertEncodeDecode([1], "2140")
         self.assertEncodeDecode([0] * 10, "2a60606060606060606060")
-        self.assertEncodeDecode([0] * 11, "2b0b6060606060606060606060")
-        self.assertEncodeDecode([0] * 0xff, "2bff" + "60" * 0xff)
-        self.assertEncodeDecode([0] * 0xffff, "2cffff" + "60" * 0xffff)
-        self.assertEncodeDecode([0] * 0xffffff, "2dffffff" + "60" * 0xffffff)
+        self.assertEncodeDecode([0] * 11, "2b016060606060606060606060")
+        self.assertEncodeDecode([0] * 0xff, "2bf5" + "60" * 0xff)
+        self.assertEncodeDecode([0] * 265, "2bff" + "60" * 265)
+        self.assertEncodeDecode([0] * 0xffff, "2cf5ff" + "60" * 0xffff)
+        self.assertEncodeDecode([0] * 0xffffff, "2df5ffff" + "60" * 0xffffff)
 
     def test_bytes_simple(self):
         self.assertEncodeDecode(bytearray(0), "80")
         self.assertEncodeDecode(bytearray(1), "8100")
         self.assertEncodeDecode(bytearray(3), "83000000")
         self.assertEncodeDecode(bytearray(59), "bb" + "00" * 59)
-        self.assertEncodeDecode(bytearray(60), "bc3c" + "00" * 60)
-        self.assertEncodeDecode(bytearray(127), "bc7f" + "00" * 127)
-        self.assertEncodeDecode(bytearray(0xff), "bcff" + "00" * 255)
-        self.assertEncodeDecode(bytearray(0x100), "bd0001" + "00" * 256)
-        self.assertEncodeDecode(bytearray(0xffff), "bdffff" + "00" * 0xffff)
-        self.assertEncodeDecode(bytearray(0xfffff), "beffff0f" + "00" * 0xfffff)
-        self.assertEncodeDecode(bytearray(0xffffff), "beffffff" + "00" * 0xffffff)
-        # self.assertEncodeDecode(bytearray(0x1000000), "bf00000001" + "00" * (0x1000000))
+        self.assertEncodeDecode(bytearray(60), "bc01" + "00" * 60)
+        self.assertEncodeDecode(bytearray(127), "bc44" + "00" * 127)
+        self.assertEncodeDecode(bytearray(0xff), "bcc4" + "00" * 255)
+        self.assertEncodeDecode(bytearray(0x100), "bcc5" + "00" * 256)
+        self.assertEncodeDecode(bytearray(314), "bcff" + "00" * 314)
+        self.assertEncodeDecode(bytearray(315), "bd0001" + "00" * 315)
+        self.assertEncodeDecode(bytearray(0xffff), "bdc4ff" + "00" * 0xffff)
+        self.assertEncodeDecode(bytearray(0xfffff), "bec4ff0f" + "00" * 0xfffff)
+        self.assertEncodeDecode(bytearray(0xffffff), "bec4ffff" + "00" * 0xffffff)
+        # self.assertEncodeDecode(bytearray(0x1000000), "bec5ffff" + "00" * (0x1000000))
 
     def test_map_simple(self):
         self.assertEncodeDecode({}, "30")

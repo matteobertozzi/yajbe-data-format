@@ -30,37 +30,44 @@ final class YajbeReaderByteArray extends YajbeReader {
     this.length = len;
   }
 
+  @Override
   protected int peek() {
     return (offset < length) ? (data[offset] & 0xff) : -1;
   }
 
+  @Override
   protected int read() {
     return (offset < length) ? (data[offset++] & 0xff) : -1;
   }
 
+  @Override
   protected ByteArraySlice readNBytes(final int n) {
     final ByteArraySlice slice = new ByteArraySlice(data, offset, n);
     offset += n;
     return slice;
   }
 
+  @Override
   protected void readNBytes(final byte[] buf, final int off, final int len) {
     System.arraycopy(data, offset, buf, off, len);
     offset += len;
   }
 
+  @Override
   protected String readString(final int n) {
     final String r = new String(data, offset, n, StandardCharsets.UTF_8);
     offset += n;
     return r;
   }
 
+  @Override
   protected long readFixed(final int width) {
     final int off = this.offset;
     this.offset += width;
     return readFixed(data, off, width);
   }
 
+  @Override
   protected int readFixedInt(final int width) {
     final int off = this.offset;
     this.offset += width;

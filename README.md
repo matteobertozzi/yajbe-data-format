@@ -59,6 +59,7 @@ For test purposes we use json files downloaded or generated from:
  - https://github.com/jdorfman/awesome-json-datasets
  - https://catalog.data.gov/dataset/?res_format=JSON
  - https://json-generator.com/
+ - https://data.ssb.no/api/v0/dataset
 
 ## Cool Charts
 _We really don't want to provide benchmark saying we use less bytes than X or we are faster than Y. For our use cases we see that the java jackson encoder is faster than using JSON one. The output data is smaller and compress/decompress/decode faster. If you can use data with schemas there are better/faster alternatives. but as a drop-in replacement this one is good enough._

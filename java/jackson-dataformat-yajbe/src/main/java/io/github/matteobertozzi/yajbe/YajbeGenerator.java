@@ -39,7 +39,7 @@ final class YajbeGenerator extends GeneratorBase {
   private final byte[] wbuffer;
 
   YajbeGenerator(final IOContext ctxt, final int features, final ObjectCodec codec, final OutputStream stream) {
-    super(features, codec, null);
+    super(features, codec);
     this.ctxt = ctxt;
 
     this.wbuffer = ctxt.allocWriteEncodingBuffer(9);
@@ -138,13 +138,19 @@ final class YajbeGenerator extends GeneratorBase {
 
   @Override
   public void writeString(final String text) throws IOException {
+    if (text == null || text.isEmpty()) {
+      stream.writeEmptyString();
+      return;
+    }
+
     stream.writeString(text);
   }
 
   @Override
   public void writeString(final char[] buffer, final int offset, final int len) throws IOException {
     if (len != 0) {
-      stream.writeString(new String(buffer, offset, len));
+      final String text = new String(buffer, offset, len);
+      stream.writeString(text);
     } else {
       stream.writeEmptyString();
     }

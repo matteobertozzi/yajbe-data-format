@@ -86,7 +86,7 @@ public class YajbeMapper extends ObjectMapper {
   }
 
   private static final class YajbeWriter extends ObjectWriter {
-    protected YajbeWriter(final ObjectMapper mapper, final SerializationConfig config) {
+    YajbeWriter(final ObjectMapper mapper, final SerializationConfig config) {
       super(mapper, config);
     }
 

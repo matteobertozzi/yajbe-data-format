@@ -99,27 +99,29 @@ public final class ExamplesUtil {
   }
 
   public static long runBench(final String name, final long count, final BenchRunnable runnable) throws Exception {
+    for (long i = 0, n = 1 + (int)(count * 0.1f); i < n; ++i) runnable.run();
+
     final long startTime = System.nanoTime();
     for (long i = 0; i < count; ++i) {
       final Object r = runnable.run();
     }
     final long elapsed = System.nanoTime() - startTime;
-    System.out.printf("[BENCH] %20s - %s runs took %s %s%n",
+    System.out.printf("[BENCH] %40s - %s runs took %s %s%n",
         name, humanCount(count), humanTimeNanos(elapsed), humanRate(count, elapsed, TimeUnit.NANOSECONDS));
     return elapsed;
   }
 
-  public static long runDecodeBench(final ObjectMapper mapper, final int nruns, final String testLabel, final byte[] enc) throws Exception {
+  public static long runDecodeBench(final ObjectMapper mapper, final long nruns, final String testLabel, final byte[] enc) throws Exception {
     final String label = mapper.getFactory().getFormatName() + " decode " + testLabel;
     return runBench(label, nruns, () -> mapper.readTree(enc));
   }
 
-  public static long runEncodeBench(final ObjectMapper mapper, final int nruns, final String testLabel, final Object obj) throws Exception {
+  public static long runEncodeBench(final ObjectMapper mapper, final long nruns, final String testLabel, final Object obj) throws Exception {
     final String label = mapper.getFactory().getFormatName() + " encode " + testLabel;
     return runBench(label, nruns, () -> mapper.writeValueAsBytes(obj));
   }
 
-  public static long runEncodeDecodeBench(final ObjectMapper mapper, final int nruns, final String testLabel, final Object obj) throws Exception {
+  public static long runEncodeDecodeBench(final ObjectMapper mapper, final long nruns, final String testLabel, final Object obj) throws Exception {
     final String label = mapper.getFactory().getFormatName() + " encode/decode " + testLabel;
     return runBench(label, nruns, () -> encodeDecode(mapper, obj));
   }

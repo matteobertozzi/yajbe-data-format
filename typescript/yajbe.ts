@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-export function encode(value: unknown, options?: { bufSize?: number, fieldNames?: string[] }) {
+export function encode(value: unknown, options?: { bufSize?: number, fieldNames?: string[] }): Uint8Array {
   const writer = new InMemoryBytesWriter(options?.bufSize);
   const encoder = new YajbeEncoder(writer, options?.fieldNames);
   encoder.encodeItem(value);
@@ -403,7 +403,7 @@ export class InMemoryBytesWriter extends AbstractBytesWriter {
 }
 
 // ==============================================================================================================
-class YajbeEncoder extends DataEncoder {
+export class YajbeEncoder extends DataEncoder {
   private readonly fieldNameWriter: FieldNameWriter;
   private readonly textEncoder: TextEncoder;
   private readonly writer: BytesWriter;
@@ -437,6 +437,7 @@ class YajbeEncoder extends DataEncoder {
     if (value <= 24) {
       this.writer.writeUint8(0b010_00000 | (value - 1));
     } else {
+      value -= 25;
       const bytes = intBytesWidth(value);
       this.writer.writeUint8(0b010_00000 | (23 + bytes));
       this.writer.writeUint(value, bytes);
@@ -448,6 +449,7 @@ class YajbeEncoder extends DataEncoder {
     if (value <= 23) {
       this.writer.writeUint8(0b011_00000 | value);
     } else {
+      value -= 24;
       const bytes = intBytesWidth(value);
       this.writer.writeUint8(0b011_00000 | (23 + bytes));
       this.writer.writeUint(value, bytes);
@@ -487,9 +489,10 @@ class YajbeEncoder extends DataEncoder {
     if (length <= inlineMax) {
       this.writer.writeUint8(head | length);
     } else {
-      const bytes = intBytesWidth(length);
+      const deltaLength = length - inlineMax;
+      const bytes = intBytesWidth(deltaLength);
       this.writer.writeUint8(head | (inlineMax + bytes));
-      this.writer.writeUint(length, bytes);
+      this.writer.writeUint(deltaLength, bytes);
     }
   }
 
@@ -499,7 +502,7 @@ class YajbeEncoder extends DataEncoder {
   protected encodeFalse(): void { this.writer.writeUint8(0b10); }
 }
 
-class YajbeDecoder {
+export class YajbeDecoder {
   private readonly fieldNameReader: FieldNameReader;
   private readonly textDecoder: TextDecoder;
   private readonly buffer: BytesReader;
@@ -541,7 +544,7 @@ class YajbeDecoder {
     if (w < 24) return signed ? -w : (1 + w);
 
     const value = this.buffer.readUint(w - 23);
-    return signed ? -value : value;
+    return signed ? -(value + 24) : (value + 25);
   }
 
   private decodeFloat(head: number): number {
@@ -554,11 +557,14 @@ class YajbeDecoder {
     return 0;
   }
 
-  private decodeBytes(head: number): Uint8Array {
+  private readBytesLength(head: number): number {
     const w = head & 0b111111;
-    if (w < 60) return this.buffer.readUint8Array(w);
+    if (w <= 59) return w;
+    return 59 + this.buffer.readUint(w - 59);
+  }
 
-    const length = this.buffer.readUint(w - 59);
+  private decodeBytes(head: number): Uint8Array {
+    const length = this.readBytesLength(head);
     return this.buffer.readUint8Array(length);
   }
 
@@ -575,6 +581,11 @@ class YajbeDecoder {
     return false;
   }
 
+  private readItemCount(w: number): number {
+    if (w <= 10) return w;
+    return 10 + this.buffer.readUint(w - 10);
+  }
+
   private decodeArray(head: number): unknown[] | Array<unknown> {
     const w = head & 0b1111;
     if (w == 0b1111) {
@@ -585,17 +596,12 @@ class YajbeDecoder {
       return retArray;
     }
 
-    const length = this.readLength(w, 10);
+    const length = this.readItemCount(w);
     const retArray = new Array(length);
     for (let i = 0; i < length; ++i) {
       retArray[i] = this.decodeItem();
     }
     return retArray;
-  }
-
-  private readLength(w: number, inlineMax: number): number {
-    if (w <= inlineMax) return w;
-    return this.buffer.readUint(w - inlineMax);
   }
 
   private decodeObject(head: number): {[key: string]: unknown} {
@@ -609,7 +615,7 @@ class YajbeDecoder {
       return retObject;
     }
 
-    const length = this.readLength(w, 10);
+    const length = this.readItemCount(w);
     const retObject: {[key: string]: unknown} = {};
     for (let i = 0; i < length; ++i) {
       const key = this.fieldNameReader.decodeString();
@@ -630,7 +636,7 @@ export class FieldNameWriter {
     this.textEncoder = textEncoder;
 
     if (initialFieldNames) {
-      for (let i = 0; i < initialFieldNames.length && i < 0xffff; ++i) {
+      for (let i = 0; i < initialFieldNames.length && i < 65819; ++i) {
         this.indexedMap.set(initialFieldNames[i], i);
       }
     }
@@ -661,7 +667,7 @@ export class FieldNameWriter {
       this.writeFullFieldName(utf8);
     }
 
-    if (this.indexedMap.size < 0xffff) {
+    if (this.indexedMap.size < 65819) {
       this.indexedMap.set(key, this.indexedMap.size);
     }
     this.lastKey = utf8;
@@ -701,12 +707,13 @@ export class FieldNameWriter {
     const writer = this.writer;
     if (length < 30) {
       writer.writeUint8(head | length);
-    } else if (length <= 0xff) {
+    } else if (length <= 284) {
       writer.writeUint8(head | 0b11110);
-      writer.writeUint8(length & 0xff);
-    } else if (length <= 0xffff) {
+      writer.writeUint8((length - 29) & 0xff);
+    } else if (length <= 65819) {
       writer.writeUint8(head | 0b11111);
-      writer.writeUint16(length);
+      writer.writeUint8(Math.floor((length - 284) / 256));
+      writer.writeUint8((length - 284) & 255);
     } else {
       throw new Error("unexpected too many field names: " + length);
     }
@@ -752,7 +759,7 @@ export class FieldNameReader {
 
     if (initialFieldNames) {
       const textEncoder = new TextEncoder();
-      for (let i = 0; i < initialFieldNames.length && i < 0xffff; ++i) {
+      for (let i = 0; i < initialFieldNames.length && i < 65819; ++i) {
         this.indexedNames.push(textEncoder.encode(initialFieldNames[i]));
       }
     }
@@ -771,11 +778,12 @@ export class FieldNameReader {
 
   private readLength(head: number) {
     const length = (head & 0b000_11111);
-    switch (length) {
-      case 30: return this.reader.readUint8();
-      case 31: return this.reader.readUint16();
-    }
-    return length;
+    if (length < 30) return length;
+    if (length == 30) return this.reader.readUint8() + 29;
+
+    const b1 = this.reader.readUint8();
+    const b2 = this.reader.readUint8();
+    return 284 + 256 * b1 + b2;
   }
 
   private addToIndex(utf8: Uint8Array): string {

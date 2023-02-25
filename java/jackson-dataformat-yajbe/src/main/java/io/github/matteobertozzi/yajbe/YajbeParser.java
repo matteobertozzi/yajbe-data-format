@@ -40,6 +40,7 @@ final class YajbeParser extends ParserMinimalBase {
   private final YajbeFieldNameReader fieldNameReader;
   private final YajbeReader stream;
   private final ObjectCodec codec;
+
   private boolean isClosed = false;
 
   YajbeParser(final IOContext ctxt, final int features, final ObjectCodec codec, final YajbeReader stream) {
@@ -136,7 +137,8 @@ final class YajbeParser extends ParserMinimalBase {
   // ---------------------------------------------------------------------------
   //  Reader Stack - Object Related
   // ---------------------------------------------------------------------------
-  private void startFixedObject(final int length) {
+  private void startFixedObject(final int head) throws IOException {
+    final int length = stream.readItemCount(head);
     stackPush(length);
     this.stackStateHandler = this::stackFixedObjectStateHandler;
     this.stackState = 0;
@@ -171,7 +173,8 @@ final class YajbeParser extends ParserMinimalBase {
   // ---------------------------------------------------------------------------
   //  Reader Stack - Array Related
   // ---------------------------------------------------------------------------
-  private void startFixedArray(final int length) {
+  private void startFixedArray(final int head) throws IOException {
+    final int length = stream.readItemCount(head);
     stackPush(STACK_FLAG_ARRAY | length);
     this.stackStateHandler = this::stackFixedArrayStateHandler;
     this.stackState = length;
@@ -201,40 +204,51 @@ final class YajbeParser extends ParserMinimalBase {
   //  NOTE: to avoid too many ifs, we pre-build a map with the tokens.
   //  so we can find the token just by looking up TOKEN_MAP[head]
   private static final byte[] TOKEN_MAP = new byte[] {
-    0, -1, 1, 2, 7, 8, 9, 10, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 12,
-    13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 14,
-    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-    4, 4, 4, 4, 4, 4, 4, 4,
-    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-    4, 4, 4, 4, 4, 4, 4, 4,
-    6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-    5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5
+    0, -1, 1, 2,
+    12, 13, 14, 15,
+    8, 9, 9,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 17,
+    18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 19,
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4,
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 5, 5, 5, 5, 5, 5, 5, 5,
+    10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11,
+    6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7
   };
 
   private static final int TOKEN_NULL         = 0;
   private static final int TOKEN_FALSE        = 1;
   private static final int TOKEN_TRUE         = 2;
   private static final int TOKEN_INT_SMALL    = 3;
-  private static final int TOKEN_INT          = 4;
-  private static final int TOKEN_STRING       = 5;
-  private static final int TOKEN_BYTES        = 6;
-  private static final int TOKEN_FLOAT_VLE    = 7;
-  private static final int TOKEN_FLOAT_32     = 8;
-  private static final int TOKEN_FLOAT_64     = 9;
-  private static final int TOKEN_BIG_DECIMAL  = 10;
-  private static final int TOKEN_ARRAY        = 11;
-  private static final int TOKEN_ARRAY_EOF    = 12;
-  private static final int TOKEN_OBJECT       = 13;
-  private static final int TOKEN_OBJECT_EOF   = 14;
+  private static final int TOKEN_INT_POSITIVE = 4;
+  private static final int TOKEN_INT_NEGATIVE = 5;
+  private static final int TOKEN_SMALL_STRING = 6;
+  private static final int TOKEN_STRING       = 7;
+  private static final int TOKEN_ENUM_CONFIG  = 8;
+  private static final int TOKEN_ENUM_STRING  = 9;
+  private static final int TOKEN_SMALL_BYTES  = 10;
+  private static final int TOKEN_BYTES        = 11;
+  private static final int TOKEN_FLOAT_VLE    = 12;
+  private static final int TOKEN_FLOAT_32     = 13;
+  private static final int TOKEN_FLOAT_64     = 14;
+  private static final int TOKEN_BIG_DECIMAL  = 15;
+  private static final int TOKEN_ARRAY        = 16;
+  private static final int TOKEN_ARRAY_EOF    = 17;
+  private static final int TOKEN_OBJECT       = 18;
+  private static final int TOKEN_OBJECT_EOF   = 19;
 
   private static final JsonToken[] JSON_TOKEN_MAP = new JsonToken[] {
     JsonToken.VALUE_NULL,
     JsonToken.VALUE_FALSE,
     JsonToken.VALUE_TRUE,
     JsonToken.VALUE_NUMBER_INT,       // small int
-    JsonToken.VALUE_NUMBER_INT,       // int
+    JsonToken.VALUE_NUMBER_INT,       // int positive
+    JsonToken.VALUE_NUMBER_INT,       // int negative
+    JsonToken.VALUE_STRING,           // small string
     JsonToken.VALUE_STRING,           // string
+    null,                             // enum config
+    JsonToken.VALUE_STRING,           // enum string
+    JsonToken.VALUE_EMBEDDED_OBJECT,  // small bytes
     JsonToken.VALUE_EMBEDDED_OBJECT,  // bytes
     JsonToken.VALUE_NUMBER_FLOAT,     // float vle
     JsonToken.VALUE_NUMBER_FLOAT,     // float32
@@ -258,16 +272,19 @@ final class YajbeParser extends ParserMinimalBase {
     final int tokenId = TOKEN_MAP[head];
     switch (tokenId) {
       case TOKEN_INT_SMALL -> stream.decodeSmallInt(head);
-      case TOKEN_INT -> stream.decodeInt(head);
+      case TOKEN_INT_POSITIVE -> stream.decodeIntPositive(head);
+      case TOKEN_INT_NEGATIVE -> stream.decodeIntNegative(head);
+      case TOKEN_SMALL_STRING -> stream.decodeSmallString(head);
       case TOKEN_STRING -> stream.decodeString(head);
+      case TOKEN_SMALL_BYTES -> stream.decodeSmallBytes(head);
       case TOKEN_BYTES -> stream.decodeBytes(head);
       case TOKEN_FLOAT_VLE -> stream.decodeFloatVle();
       case TOKEN_FLOAT_32 -> stream.decodeFloat32();
       case TOKEN_FLOAT_64 -> stream.decodeFloat64();
       case TOKEN_BIG_DECIMAL -> stream.decodeBigDecimal();
-      case TOKEN_ARRAY -> startFixedArray(stream.readItemCount(head));
+      case TOKEN_ARRAY -> startFixedArray(head);
       case TOKEN_ARRAY_EOF -> startEofArray();
-      case TOKEN_OBJECT -> startFixedObject(stream.readItemCount(head));
+      case TOKEN_OBJECT -> startFixedObject(head);
       case TOKEN_OBJECT_EOF -> startEofObject();
     }
     return _currToken = JSON_TOKEN_MAP[tokenId];
@@ -452,15 +469,27 @@ final class YajbeParser extends ParserMinimalBase {
     for (int i = 0; i <= 0xff; ++i) {
       final int head = i & 0xff;
       if ((head & 0b11_000000) == 0b11_000000) {
-        tokens[i] = TOKEN_STRING;
+        final int w = head & 0b111111;
+        if (w <= 59) {
+          tokens[i] = TOKEN_SMALL_STRING;
+        } else {
+          tokens[i] = TOKEN_STRING;
+        }
       } else if ((head & 0b10_000000) == 0b10_000000) {
-        tokens[i] = TOKEN_BYTES;
+        final int w = head & 0b111111;
+        if (w <= 59) {
+          tokens[i] = TOKEN_SMALL_BYTES;
+        } else {
+          tokens[i] = TOKEN_BYTES;
+        }
       } else if ((head & 0b010_00000) == 0b010_00000) {
         final int w = head & 0b11111;
         if (w < 24) {
           tokens[i] = TOKEN_INT_SMALL;
+        } else if ((head & 0b011_00000) == 0b011_00000) {
+          tokens[i] = TOKEN_INT_NEGATIVE;
         } else {
-          tokens[i] = TOKEN_INT;
+          tokens[i] = TOKEN_INT_POSITIVE;
         }
       } else if ((head & 0b0011_1111) == 0b0011_1111) {
         tokens[i] = TOKEN_OBJECT_EOF;
@@ -473,7 +502,12 @@ final class YajbeParser extends ParserMinimalBase {
       } else if ((head & 0b0001_0000) == 0b0001_0000) {
         tokens[i] = -1;
       } else if ((head & 0b00001_000) == 0b00001_000) {
-        tokens[i] = -1;
+        switch (head) {
+          case 0b00001000 -> tokens[i] = TOKEN_ENUM_CONFIG;
+          case 0b00001001 -> tokens[i] = TOKEN_ENUM_STRING;
+          case 0b00001010 -> tokens[i] = TOKEN_ENUM_STRING;
+          default -> tokens[i] = -1;
+        }
       } else switch (head) {
         case 0b00000000 -> tokens[i] = TOKEN_NULL;
         case 0b00000001 -> tokens[i] = -1;

@@ -67,7 +67,6 @@ public class TestYajbeMaps extends BaseYajbeTest {
     input.put("eee", List.of("a", Map.of("k", 10), "b"));
     input.put("fff", Map.of("a", Map.of("k", List.of("z", "d"))));
     input.put("ggg", "foo");
-    System.out.println(input);
     assertEncodeDecode(input, Map.class, "3f8361616140836262623f816b4901836363630666666666666602408364646422c161c1628365656523c1613fa24901c162836666663f81613fa222c17ac164010183676767c3666f6f01");
     assertDecode("3783616161408362626231816b49836363630666666666666602408364646422c161c1628365656523c16131a249c1628366666631816131a222c17ac16483676767c3666f6f", Map.class, input);
   }
@@ -97,6 +96,22 @@ public class TestYajbeMaps extends BaseYajbeTest {
     assertEquals(input, dec2);
     final Object dec2x = YAJBE_MAPPER.reader(attrs).readValue(HexFormat.of().parseHex("33a141a0408d736f6d657468696e67206e657742"), LinkedHashMap.class);
     assertEquals(input, dec2x);
+  }
+
+  @Test
+  public void testStringLength() throws IOException {
+    for (int i = 1; i < 30; ++i) {
+      final byte[] x = YAJBE_MAPPER.writeValueAsBytes(Map.of("x".repeat(i), 1));
+      assertEquals(3 + i + 1, x.length);
+    }
+    for (int i = 31; i <= 284; ++i) {
+      final byte[] x = YAJBE_MAPPER.writeValueAsBytes(Map.of("x".repeat(i), 1));
+      assertEquals(3 + i + 2, x.length);
+    }
+    for (int i = 285; i < 0xffff; ++i) {
+      final byte[] x = YAJBE_MAPPER.writeValueAsBytes(Map.of("x".repeat(i), 1));
+      assertEquals(3 + i + 3, x.length);
+    }
   }
 
   @Test

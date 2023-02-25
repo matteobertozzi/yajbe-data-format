@@ -64,7 +64,6 @@ abstract class YajbeReader {
     return (int)result;
   }
   // =========================================================================================================
-
   public static YajbeReader fromBytes(final byte[] buf) {
     return fromBytes(buf, 0, buf.length);
   }
@@ -77,6 +76,7 @@ abstract class YajbeReader {
     return new YajbeReaderStream(in);
   }
 
+  // =========================================================================================================
   private NumberType numberType;
   private int intValue;
   private long longValue;
@@ -97,66 +97,85 @@ abstract class YajbeReader {
   public ByteArraySlice bytesValue() { return bytesValue; }
   public String stringValue() { return strValue; }
 
-  public void decodeString(final int head) throws IOException {
-    final int w = head & 0b111111;
-    if (w < 60) {
-      strValue = readString(w);
-    } else {
-      final int length = readFixedInt(w - 59);
-      strValue = readString(length);
-    }
+  // ====================================================================================================
+  //  String related
+  // ====================================================================================================
+  public final void decodeSmallString(final int head) throws IOException {
+    strValue = readString(head & 0b111111);
   }
 
-  public void decodeBytes(final int head) throws IOException {
-    final int w = head & 0b111111;
-    if (w < 60) {
-      bytesValue = readNBytes(w);
-    } else {
-      final int length = readFixedInt(w - 59);
-      bytesValue = readNBytes(length);
-    }
+  public final void decodeString(final int head) throws IOException {
+    final int length = 59 + readFixedInt((head & 0b111111) - 59);
+    strValue = readString(length);
   }
 
-  public void decodeSmallInt(final int head) {
+  // ====================================================================================================
+  //  Bytes related
+  // ====================================================================================================
+  public final void decodeSmallBytes(final int head) throws IOException {
+    bytesValue = readNBytes(head & 0b111111);
+  }
+
+  public final void decodeBytes(final int head) throws IOException {
+    final int length = 59 + readFixedInt((head & 0b111111) - 59);
+    bytesValue = readNBytes(length);
+  }
+
+  // ====================================================================================================
+  //  Int related
+  // ====================================================================================================
+  public final void decodeSmallInt(final int head) {
     final boolean signed = (head & 0b011_00000) == 0b011_00000;
-
     final int w = head & 0b11111;
     intValue = signed ? -w : (1 + w);
     numberType = NumberType.INT;
   }
 
-  public void decodeInt(final int head) throws IOException {
-    final boolean signed = (head & 0b011_00000) == 0b011_00000;
-
+  public final void decodeIntPositive(final int head) throws IOException {
     final int w = head & 0b11111;
-    final int width = w - 23;
-    final long v = readFixed(width);
+    final long v = 25L + readFixed(w - 23);
     if (v <= Integer.MAX_VALUE) {
-      intValue = (int)(signed ? -v : v);
+      intValue = (int)v;
       numberType = NumberType.INT;
     } else {
-      longValue = signed ? -v : v;
+      longValue = v;
       numberType = NumberType.LONG;
     }
   }
 
-  public void decodeFloatVle() {
+  public final void decodeIntNegative(final int head) throws IOException {
+    final int w = head & 0b11111;
+    final long v = readFixed(w - 23);
+    final long signedValue = -(v + 24L);
+    if (signedValue >= Integer.MIN_VALUE) {
+      intValue = (int)signedValue;
+      numberType = NumberType.INT;
+    } else {
+      longValue = signedValue;
+      numberType = NumberType.LONG;
+    }
+  }
+
+  // ====================================================================================================
+  //  Float related
+  // ====================================================================================================
+  public final void decodeFloatVle() {
     throw new UnsupportedOperationException("Not implemented decode float16/vle-float");
   }
 
-  public void decodeFloat32() throws IOException {
+  public final void decodeFloat32() throws IOException {
     final int i32 = readFixedInt(4);
     this.floatValue = Float.intBitsToFloat(i32);
     this.numberType = NumberType.FLOAT;
   }
 
-  public void decodeFloat64() throws IOException {
+  public final void decodeFloat64() throws IOException {
     final long i64 = readFixed(8);
     this.doubleValue = Double.longBitsToDouble(i64);
     this.numberType = NumberType.DOUBLE;
   }
 
-  public void decodeBigDecimal() throws IOException {
+  public final void decodeBigDecimal() throws IOException {
     final int head = read();
     final boolean signedScale = (head & 0x80) == 0x80;
     final int scaleBytes = 1 + ((head >> 5) & 3);
@@ -182,12 +201,18 @@ abstract class YajbeReader {
     this.bigDecimal = new BigDecimal(unscaled, scale, new MathContext(precision));
   }
 
-  public int readItemCount(final int head) throws IOException {
+  // ====================================================================================================
+  //  Array/Object length related
+  // ====================================================================================================
+  public final int readItemCount(final int head) throws IOException {
     final int w = head & 0b1111;
     if (w <= 10) return w;
-    return readFixedInt(w - 10);
+    return 10 + readFixedInt(w - 10);
   }
 
+  // ====================================================================================================
+  //  Utils
+  // ====================================================================================================
   record ByteArraySlice (byte[] buf, int off, int len) {
     public ByteArraySlice(final byte[] buf) {
       this(buf, 0, buf.length);

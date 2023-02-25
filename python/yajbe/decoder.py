@@ -24,7 +24,7 @@ class FieldNameReader:
         self._indexed_names = []
         self._last_key = b''
         if initialFieldNames:
-            for name in initialFieldNames[:0xffff]:
+            for name in initialFieldNames[:65819]:
                 self._indexed_names.append(name.encode('utf-8'))
 
     def decode_string(self) -> str:
@@ -67,12 +67,14 @@ class FieldNameReader:
 
     def _read_length(self, head: int) -> int:
         length = head & 0b000_11111
-        match length:
-            case 30:
-                return self._decoder._read_byte()
-            case 31:
-                return self._decoder._read_uint(2)
-        return length
+        if length < 30: return length
+
+        if length == 30:
+            return self._decoder._read_byte() + 29
+
+        b1 = self._decoder._read_byte()
+        b2 = self._decoder._read_byte()
+        return 284 + 256 * b1 + b2
 
     def _add_to_index(self, utf8: bytes) -> str:
         self._indexed_names.append(utf8)
@@ -113,10 +115,7 @@ class YajbeDecoder:
 
     def _decode_bytes(self, head: int) -> bytes:
         w = head & 0b111111
-        if w < 60:
-            return self._read_bytes(w)
-
-        length = self._read_uint(w - 59)
+        length = self._read_length(w, 59)
         return self._read_bytes(length)
 
     def _decode_string(self, head: int) -> str:
@@ -131,7 +130,7 @@ class YajbeDecoder:
             return -w if signed else (1 + w)
 
         value = self._read_uint(w - 23)
-        return -value if signed else value
+        return -(value + 24) if signed else (value + 25)
 
     def _decode_float(self, head: int) -> float:
         match head & 0b11:
@@ -186,7 +185,7 @@ class YajbeDecoder:
     def _read_length(self, w: int, inline_max: int) -> int:
         if w <= inline_max:
             return w
-        return self._read_uint(w - inline_max)
+        return inline_max + self._read_uint(w - inline_max)
 
     def _read_byte(self) -> int:
         v = self._stream.read(1)

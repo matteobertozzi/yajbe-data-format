@@ -67,40 +67,40 @@ abstract class YajbeWriter {
   }
   // =========================================================================================================
 
-  public void writeNull() throws IOException {
+  public final void writeNull() throws IOException {
     write(0);
   }
 
-  public void writeEof() throws IOException {
+  public final void writeEof() throws IOException {
     write(1);
   }
 
-  public void writeBool(final boolean value) throws IOException {
+  public final void writeBool(final boolean value) throws IOException {
     write((value ? 0b11 : 0b10));
   }
 
   // ====================================================================================================
   //  Float related
   // ====================================================================================================
-  public void writeFloat32(final float v) throws IOException {
+  public final void writeFloat32(final float v) throws IOException {
     final byte[] buf = rawBuffer();
     final int bufOff = rawBufferOffset(5);
     buf[bufOff] = 0b00000_101;
     writeFixed(buf, bufOff + 1, Float.floatToIntBits(v), 4);
   }
 
-  public void writeFloat64(final double v) throws IOException {
+  public final void writeFloat64(final double v) throws IOException {
     final byte[] buf = rawBuffer();
     final int bufOff = rawBufferOffset(9);
     buf[bufOff] = 0b00000_110;
     writeFixed(buf, bufOff + 1, Double.doubleToLongBits(v), 8);
   }
 
-  public void writeBigDecimal(final BigDecimal v) throws IOException {
+  public final void writeBigDecimal(final BigDecimal v) throws IOException {
     writeBigDecimal(v.scale(), v.precision(), v.unscaledValue());
   }
 
-  public void writeBigInteger(final BigInteger v) throws IOException {
+  public final void writeBigInteger(final BigInteger v) throws IOException {
     writeBigDecimal(0, 0, v);
   }
 
@@ -135,13 +135,13 @@ abstract class YajbeWriter {
   // ====================================================================================================
   //  Int related
   // ====================================================================================================
-  public void writeInt(final long v) throws IOException {
+  public final void writeInt(final long v) throws IOException {
     if (v >= -23 && v <= 24) {
       writeSmallInt((int)v);
     } else if (v > 0) {
-      writeExternalInt(0b010_00000, v);
+      writeExternalInt(0b010_00000, v - 25);
     } else {
-      writeExternalInt(0b011_00000, -v);
+      writeExternalInt(0b011_00000, (-v) - 24);
     }
   }
 
@@ -150,7 +150,7 @@ abstract class YajbeWriter {
   }
 
   private void writeExternalInt(final int head, final long v) throws IOException {
-    final int w = ((64 - Long.numberOfLeadingZeros(v)) + 7) >> 3;
+    final int w = (v != 0) ? ((64 - Long.numberOfLeadingZeros(v)) + 7) >> 3 : 1;
     final byte[] buf = rawBuffer();
     final int bufOff = rawBufferOffset(1 + w);
     buf[bufOff] = (byte) (head | (23 + w));
@@ -162,10 +162,11 @@ abstract class YajbeWriter {
     final int head;
     if (v > 0) {
       inlineValue = v - 1;
+      v = v - 25;
       head = 0b010_00000;
     } else {
-      v = -v;
-      inlineValue = v;
+      inlineValue = -v;
+      v = (-v) - 24;
       head = 0b011_00000;
     }
 
@@ -174,14 +175,14 @@ abstract class YajbeWriter {
       return 1;
     }
 
-    final int w = ((64 - Long.numberOfLeadingZeros(v)) + 7) >> 3;
+    final int w = (v != 0) ? ((64 - Long.numberOfLeadingZeros(v)) + 7) >> 3 : 1;
     buf[off] = (byte) (head | (23 + w));
     writeFixed(buf, off + 1, v, w);
     return 1 + w;
   }
 
   // ====================================================================================================
-  //  Bytes related
+  //  Items/Length related
   // ====================================================================================================
   private void writeLength(final int head, final int inlineMax, final int length) throws IOException {
     if (length <= inlineMax) {
@@ -189,14 +190,18 @@ abstract class YajbeWriter {
       return;
     }
 
-    final int bytes = ((32 - Integer.numberOfLeadingZeros(length)) + 7) >> 3;
+    final int deltaLength = length - inlineMax;
+    final int bytes = ((32 - Integer.numberOfLeadingZeros(deltaLength)) + 7) >> 3;
     final byte[] buf = rawBuffer();
     final int bufOff = rawBufferOffset(1 + bytes);
     buf[bufOff] = (byte) (head | (inlineMax + bytes));
-    writeFixed(buf, bufOff + 1, length, bytes);
+    writeFixed(buf, bufOff + 1, deltaLength, bytes);
   }
 
-  public void writeBytes(final byte[] buf, final int off, final int len) throws IOException {
+  // ====================================================================================================
+  //  Bytes related
+  // ====================================================================================================
+  public final void writeBytes(final byte[] buf, final int off, final int len) throws IOException {
     writeLength(0b10_000000, 59, len);
     write(buf, off, len);
   }
@@ -204,50 +209,39 @@ abstract class YajbeWriter {
   // ====================================================================================================
   //  String related
   // ====================================================================================================
-  public void writeEmptyString() throws IOException {
+  public final void writeEmptyString() throws IOException {
     write(0b11_000000);
   }
 
-  public void writeString(final String text) throws IOException {
-    if (text != null && !text.isEmpty()) {
-      writeUtf8(text.getBytes(StandardCharsets.UTF_8));
-    } else {
-      writeEmptyString();
-    }
+  public final void writeString(final String text) throws IOException {
+    final byte[] utf8 = text.getBytes(StandardCharsets.UTF_8);
+    writeUtf8(utf8, 0, utf8.length);
   }
 
-  public void writeUtf8(final byte[] buf) throws IOException {
-    if (buf != null && buf.length != 0) {
-      writeUtf8(buf, 0, buf.length);
-    } else {
-      writeEmptyString();
-    }
-  }
-
-  public void writeUtf8(final byte[] buf, final int off, final int len) throws IOException {
+  public final void writeUtf8(final byte[] utf8, final int off, final int len) throws IOException {
     writeLength(0b11_000000, 59, len);
-    write(buf, off, len);
+    write(utf8, off, len);
   }
 
   // ====================================================================================================
   //  Array related
   // ====================================================================================================
-  public boolean newArray() throws IOException {
+  public final boolean newArray() throws IOException {
     write(0b0010_1111);
     return true;
   }
 
-  public boolean newArray(final int size) throws IOException {
+  public final boolean newArray(final int size) throws IOException {
     writeLength(0b0010_0000, 10, size);
     return false;
   }
 
-  public void writeArray(final int[] array, final int offset, final int length) throws IOException {
+  public final void writeArray(final int[] array, final int offset, final int length) throws IOException {
     writeLength(0b0010_0000, 10, length);
     rawBufferWriteBatch(length, 5, (buf, off, index) -> writeRawInt(buf, off, array[offset + index]));
   }
 
-  public void writeArray(final long[] array, final int offset, final int length) throws IOException {
+  public final void writeArray(final long[] array, final int offset, final int length) throws IOException {
     writeLength(0b0010_0000, 10, length);
     rawBufferWriteBatch(length, 9, (buf, off, index) -> writeRawInt(buf, off, array[offset + index]));
   }
@@ -255,12 +249,12 @@ abstract class YajbeWriter {
   // ====================================================================================================
   //  Object related
   // ====================================================================================================
-  public boolean newObject() throws IOException {
+  public final boolean newObject() throws IOException {
     write(0b0011_1111);
     return true;
   }
 
-  public boolean newObject(final int size) throws IOException {
+  public final boolean newObject(final int size) throws IOException {
     writeLength(0b0011_0000, 10, size);
     return false;
   }

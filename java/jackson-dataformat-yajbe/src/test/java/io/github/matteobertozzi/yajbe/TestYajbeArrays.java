@@ -53,17 +53,45 @@ public class TestYajbeArrays extends BaseYajbeTest {
     assertArrayEncodeDecode(new int[] { 1 }, "2140");
     assertArrayEncodeDecode(new int[] { 2, 2 }, "224141");
     assertArrayEncodeDecode(new int[10], "2a60606060606060606060");
-    assertArrayEncodeDecode(new int[11], "2b0b6060606060606060606060");
-    assertArrayEncodeDecode(new int[0xff], "2bff" + "60".repeat(0xff));
-    assertArrayEncodeDecode(new int[0xffff], "2cffff" + "60".repeat(0xffff));
-    assertArrayEncodeDecode(new int[0xffffff], "2dffffff" + "60".repeat(0xffffff));
+    assertArrayEncodeDecode(new int[11], "2b016060606060606060606060");
+    assertArrayEncodeDecode(new int[0xff], "2bf5" + "60".repeat(0xff));
+    assertArrayEncodeDecode(new int[265], "2bff" + "60".repeat(265));
+    assertArrayEncodeDecode(new int[0xffff], "2cf5ff" + "60".repeat(0xffff));
+    assertArrayEncodeDecode(new int[0xffffff], "2df5ffff" + "60".repeat(0xffffff));
     //assertArrayEncodeDecode(new int[0x1fffffff], "2e1fffff" + "60".repeat(0x1fffffff));
 
     assertArrayEncodeDecode(new String[0], String[].class, "20");
+    assertArrayEncodeDecode(new String[1], String[].class, "2100");
+    assertArrayEncodeDecode(new String[] { "" }, String[].class, "21c0");
     assertArrayEncodeDecode(new String[] { "a" }, String[].class, "21c161");
-    assertArrayEncodeDecode(new String[0xff], String[].class, "2bff" + "00".repeat(0xff));
-    assertArrayEncodeDecode(new String[0xffff], String[].class, "2cffff" + "00".repeat(0xffff));
-    assertArrayEncodeDecode(new String[0xffffff], String[].class, "2dffffff" + "00".repeat(0xffffff));
+    assertArrayEncodeDecode(new String[0xff], String[].class, "2bf5" + "00".repeat(0xff));
+    assertArrayEncodeDecode(new String[265], String[].class, "2bff" + "00".repeat(265));
+    assertArrayEncodeDecode(new String[0xffff], String[].class, "2cf5ff" + "00".repeat(0xffff));
+    assertArrayEncodeDecode(new String[0xffffff], String[].class, "2df5ffff" + "00".repeat(0xffffff));
+  }
+
+  @Test
+  public void testSmallArrayLength() throws IOException {
+    for (int i = 0; i < 10; ++i) {
+      final int[] input = new int[i];
+      final byte[] enc = YAJBE_MAPPER.writeValueAsBytes(input);
+      assertEquals(1 + i, enc.length);
+      assertArrayEquals(input, YAJBE_MAPPER.readValue(enc, int[].class));
+    }
+
+    for (int i = 11; i <= 265; ++i) {
+      final int[] input = new int[i];
+      final byte[] enc = YAJBE_MAPPER.writeValueAsBytes(input);
+      assertEquals(2 + i, enc.length);
+      assertArrayEquals(input, YAJBE_MAPPER.readValue(enc, int[].class));
+    }
+
+    for (int i = 266; i <= 0x1fff; ++i) {
+      final int[] input = new int[i];
+      final byte[] enc = YAJBE_MAPPER.writeValueAsBytes(input);
+      assertEquals(3 + i, enc.length);
+      assertArrayEquals(input, YAJBE_MAPPER.readValue(enc, int[].class));
+    }
   }
 
   @Test

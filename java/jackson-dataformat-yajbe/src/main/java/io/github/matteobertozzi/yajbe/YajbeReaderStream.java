@@ -24,6 +24,9 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 final class YajbeReaderStream extends YajbeReader {
+  private static final ByteArraySlice EMPTY_BYTES = new ByteArraySlice(null, 0, 0);
+  private static final String EMPTY_STRING = "";
+
   private final byte[] buf8 = new byte[8];
   private final InputStream stream;
 
@@ -52,12 +55,14 @@ final class YajbeReaderStream extends YajbeReader {
 
   @Override
   protected String readString(final int n) throws IOException {
+    if (n == 0) return EMPTY_STRING;
     final byte[] buf = stream.readNBytes(n);
     return new String(buf, StandardCharsets.UTF_8);
   }
 
   @Override
   protected ByteArraySlice readNBytes(final int n) throws IOException {
+    if (n == 0) return EMPTY_BYTES;
     final byte[] buf = stream.readNBytes(n);
     return new ByteArraySlice(buf);
   }

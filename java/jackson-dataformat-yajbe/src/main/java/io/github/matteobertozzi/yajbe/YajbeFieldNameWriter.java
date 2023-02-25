@@ -22,9 +22,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 final class YajbeFieldNameWriter {
+  private static final int MAX_INDEXED_NAMES = 65819;
+
   private final IndexedHashSet indexedMap = new IndexedHashSet(128);
   private final YajbeWriter stream;
-  private byte[] lastKey;
+
+  private String lastKey;
+  private byte[] lastKeyUtf8;
 
   public YajbeFieldNameWriter(final YajbeWriter stream) {
     this.stream = stream;
@@ -35,45 +39,54 @@ final class YajbeFieldNameWriter {
       throw new UnsupportedOperationException("field names already added");
     }
 
-    for (int i = 0; i < names.length && i < 0xffff; ++i) {
+    for (int i = 0; i < names.length && i < 65819; ++i) {
       indexedMap.add(names[i]);
     }
   }
 
   public void write(final String key) throws IOException {
-    final byte[] utf8 = key.getBytes(StandardCharsets.UTF_8);
-
     final int index = this.indexedMap.get(key);
     if (index >= 0) {
       this.writeIndexedFieldName(index);
-      this.lastKey = utf8;
+      this.lastKey = key;
+      this.lastKeyUtf8 = null;
       return;
     }
 
-    if (this.lastKey != null && utf8.length > 4) {
-      final int prefix = Math.min(0xff, this.prefix(utf8));
-      final int suffix = this.suffix(utf8, prefix);
+    final byte[] utf8 = key.getBytes(StandardCharsets.UTF_8);
 
-      if (suffix > 2) {
-        this.writePrefixSuffix(utf8, prefix, Math.min(0xff, suffix));
-      } else if (prefix > 2) {
-        this.writePrefix(utf8, prefix);
-      } else {
-        this.writeFullFieldName(utf8);
-      }
+    if (this.lastKey != null && utf8.length > 4) {
+      checkPrefixAndWrite(utf8);
     } else {
-      this.writeFullFieldName(utf8);
+      writeFullFieldName(utf8);
     }
 
-    if (indexedMap.size() < 0xffff) {
+    if (indexedMap.size() < MAX_INDEXED_NAMES) {
       indexedMap.add(key);
     }
-    this.lastKey = utf8;
+    this.lastKey = key;
+    this.lastKeyUtf8 = utf8;
+  }
+
+  private void checkPrefixAndWrite(final byte[] utf8) throws IOException {
+    if (lastKeyUtf8 == null) {
+      this.lastKeyUtf8 = lastKey.getBytes(StandardCharsets.UTF_8);
+    }
+
+    final int prefix = Math.min(0xff, this.prefix(utf8));
+    final int suffix = this.suffix(utf8, prefix);
+
+    if (suffix > 2) {
+      writePrefixSuffix(utf8, prefix, Math.min(0xff, suffix));
+    } else if (prefix > 2) {
+      writePrefix(utf8, prefix);
+    } else {
+      writeFullFieldName(utf8);
+    }
   }
 
   public void writeFullFieldName(final byte[] fieldName) throws IOException {
     // 100----- Full Field Name (0-29 length - 1, 30 1b-len, 31 2b-len)
-    //System.out.println(" -> WRITE FULL " + new String(fieldName));
     writeLength(0b100_00000, fieldName.length);
     this.stream.write(fieldName, 0, fieldName.length);
   }
@@ -103,34 +116,39 @@ final class YajbeFieldNameWriter {
   private void writeLength(final int head, final int length) throws IOException {
     if (length < 30) {
       stream.write(head | length);
-    } else if (length <= 0xff) {
+      return;
+    }
+
+    if (length <= 284) {
+      // 30 + 1byte = 284
       final byte[] buf = stream.rawBuffer();
       final int bufOff = stream.rawBufferOffset(2);
       buf[bufOff] = (byte) (head | 0b11110);
-      buf[bufOff + 1] = (byte) (length & 0xff);
-    } else if (length <= 0xffff) {
+      buf[bufOff + 1] = (byte) ((length - 29) & 0xff);
+      return;
+    }
+
+    if (length <= 65819) {
+      // 31 + 2byte = 65819
       final byte[] buf = stream.rawBuffer();
       final int bufOff = stream.rawBufferOffset(3);
       buf[bufOff] = (byte) (head | 0b11111);
-      YajbeWriter.writeFixed(buf, bufOff + 1, length, 2);
-    } else {
-      throw new Error("unexpected too many field names: " + length);
+      buf[bufOff + 1] = (byte) ((length - 284) / 256);
+      buf[bufOff + 2] = (byte) ((length - 284) & 255);
+      return;
     }
+
+    throw new Error("unexpected too many field names: " + length);
   }
 
   private int prefix(final byte[] key) {
-    final byte[] a = this.lastKey;
-    final int len = Math.min(a.length, key.length);
-    for (int i = 0; i < len; ++i) {
-      if (a[i] != key[i]) {
-        return i;
-      }
-    }
-    return len;
+    final int prefix = Arrays.mismatch(lastKeyUtf8, key);
+    if (prefix >= 0) return prefix;
+    return Math.min(lastKeyUtf8.length, key.length);
   }
 
   private int suffix(final byte[] key, final int kPrefix) {
-    final byte[] a = this.lastKey;
+    final byte[] a = this.lastKeyUtf8;
     final int bLen = key.length - kPrefix;
     final int len = Math.min(a.length, bLen);
     for (int i = 1; i <= len; ++i) {

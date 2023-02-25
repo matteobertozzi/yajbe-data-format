@@ -39,7 +39,10 @@ There is a separation between Unsigned and Signed Integer. From the header you c
 Values between -23 and 24 (included) will be inlined in the header, consuming a single byte.
 0 is encoded as a signed value (0x60).
 
-If the values are below -23 or above 24, the required amount of bytes will be calculated. (e.g. v <= 255 requires 1byte, v <= 65535 requires 2bytes and so on).
+ * If the value is below -23 the value will be stored without sign as ((-v) - 24)
+ * If the value is above 24, the value will be stored as (v - 25)
+
+The required amount of bytes will be calculated. (e.g. v <= 255 requires 1byte, v <= 65535 requires 2bytes and so on).
 
 The number of bytes required to represent the value will be stored in the header. The values between 24 and 31 are reserved just for that. so we can encode them as (23 + numberOfBytes).
 
@@ -77,7 +80,9 @@ If scale and precision are zero the value will be a BigInteger. The BigInteger v
 
 Strings and Bytes are encoded in the same way except that Strings have a mask of 0xC0 and bytes have a mask of 0x80.
 
-There are 6bits available to describe the length. if the length is smaller than 60bytes, it will be inlined. otherwise the length will use the last 4 values (between 60 and 63) to describe the number of bytes required to encode the length (little-endian order, max 4bytes).
+There are 6bits available to describe the length.
+ * if the length is smaller than 60bytes, it will be inlined.
+ * otherwise the length will use the last 4 values (between 60 and 63) to describe the number of bytes required to encode the (length - 59) (little-endian order, max 4bytes).
 
 ```
 If the length is less than 60bytes
@@ -96,7 +101,9 @@ If the length is more than 60bytes there will be Nbytes containing the length
 
 Arrays and Maps are encoded in the same way, except that Arrays have a mask of 0x20 and maps have a mask of 0x30.
 
-There are 4bits available to describe the length. if there are less than 11 items, the length will be  inlined. otherwise the values between 11 and 14 will be used to describe the number of bytes required to encode the length (little-endian order, max 4bytes).
+There are 4bits available to describe the length.
+ * if there are less than 11 items, the length will be inlined.
+ * otherwise the values between 11 and 14 will be used to describe the number of bytes required to encode the (length - 10) (little-endian order, max 4bytes).
 
 If during the encoding process the length is not known, there will be no length and the value 15 will be used to say "look for EOF as termination".
 
@@ -125,3 +132,7 @@ _Even if the format allows keys of any type, the current implementation support 
 String keys are handled specially to reduce the overhead that they have on array of objects. The idea is to keep track of the keys we have already seen and replace the string with an index (int). Furthermore if the key was not seen before we check if the is a common prefix or suffix that we can strip.
 
 When decoding we keep an array of the keys (Full, Prefix, Prefix+Suffix) and if the key is indexed we just do a lookup on the array at the specified index to find the field name.
+
+ * If the length is less than 30bytes, it will be inlined.
+ * If the length is less than 285bytes, it will be encoded as [30, (length - 30) % 256]. to decode the length (29 + byte[1]).
+ * otherwise the length will be encoded as [31, (length - 284) / 256, (length - 284) % 256]. to decode the length (284 + 256 * byte[1] + byte[2])

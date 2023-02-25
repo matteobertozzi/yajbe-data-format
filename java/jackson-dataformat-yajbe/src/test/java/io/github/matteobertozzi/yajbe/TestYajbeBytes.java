@@ -18,6 +18,7 @@
 package io.github.matteobertozzi.yajbe;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 
@@ -30,14 +31,40 @@ public class TestYajbeBytes extends BaseYajbeTest {
     assertEncodeDecode(new byte[1], "8100");
     assertEncodeDecode(new byte[3], "83000000");
     assertEncodeDecode(new byte[59], "bb" + "00".repeat(59));
-    assertEncodeDecode(new byte[60], "bc3c" + "00".repeat(60));
-    assertEncodeDecode(new byte[127], "bc7f" + "00".repeat(127));
-    assertEncodeDecode(new byte[0xff], "bcff" + "00".repeat(255));
-    assertEncodeDecode(new byte[0x100], "bd0001" + "00".repeat(256));
-    assertEncodeDecode(new byte[0xffff], "bdffff" + "00".repeat(0xffff));
-    assertEncodeDecode(new byte[0xfffff], "beffff0f" + "00".repeat(0xfffff));
-    assertEncodeDecode(new byte[0xffffff], "beffffff" + "00".repeat(0xffffff));
-    assertEncodeDecode(new byte[0x1000000], "bf00000001" + "00".repeat(0x1000000));
+    assertEncodeDecode(new byte[60], "bc01" + "00".repeat(60));
+    assertEncodeDecode(new byte[127], "bc44" + "00".repeat(127));
+    assertEncodeDecode(new byte[0xff], "bcc4" + "00".repeat(255));
+    assertEncodeDecode(new byte[256], "bcc5" + "00".repeat(256));
+    assertEncodeDecode(new byte[314], "bcff" + "00".repeat(314));
+    assertEncodeDecode(new byte[315], "bd0001" + "00".repeat(315));
+    assertEncodeDecode(new byte[0xffff], "bdc4ff" + "00".repeat(0xffff));
+    assertEncodeDecode(new byte[0xfffff], "bec4ff0f" + "00".repeat(0xfffff));
+    assertEncodeDecode(new byte[0xffffff], "bec4ffff" + "00".repeat(0xffffff));
+    assertEncodeDecode(new byte[0x1000000], "bec5ffff" + "00".repeat(0x1000000));
+  }
+
+  @Test
+  public void testSmallStringLength() throws IOException {
+    for (int i = 0; i < 60; ++i) {
+      final byte[] input = new byte[i];
+      final byte[] enc = YAJBE_MAPPER.writeValueAsBytes(input);
+      assertEquals(1 + i, enc.length);
+      assertArrayEquals(input, YAJBE_MAPPER.readValue(enc, byte[].class));
+    }
+
+    for (int i = 60; i <= 314; ++i) {
+      final byte[] input = new byte[i];
+      final byte[] enc = YAJBE_MAPPER.writeValueAsBytes(input);
+      assertEquals(2 + i, enc.length);
+      assertArrayEquals(input, YAJBE_MAPPER.readValue(enc, byte[].class));
+    }
+
+    for (int i = 315; i <= 0x1fff; ++i) {
+      final byte[] input = new byte[i];
+      final byte[] enc = YAJBE_MAPPER.writeValueAsBytes(input);
+      assertEquals(3 + i, enc.length);
+      assertArrayEquals(input, YAJBE_MAPPER.readValue(enc, byte[].class));
+    }
   }
 
   @Test

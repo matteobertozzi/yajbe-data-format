@@ -74,6 +74,8 @@ public abstract class AbstractTestEncodeDecode {
     results.addColumn("JSON time", v -> ExamplesUtil.humanTimeNanos(((Number)v).longValue()));
     results.addColumn("CBOR time", v -> ExamplesUtil.humanTimeNanos(((Number)v).longValue()));
     results.addColumn("Yajbe time", v -> ExamplesUtil.humanTimeNanos(((Number)v).longValue()));
+    results.addColumn("Yajbe/JSON", v -> String.format("%.2f%%", (double)v * 100.0));
+    results.addColumn("Yajbe/CBOR", v -> String.format("%.2f%%", (double)v * 100.0));
 
     for (final TestData data: testData) {
       final int NRUNS = Math.max(10, (int)Math.ceil(2_000_000_000.0 / data.jsonEnc.length));
@@ -91,7 +93,9 @@ public abstract class AbstractTestEncodeDecode {
         (double)NRUNS / (yajbeElapsed / 1000000000.0),
         jsonElapsed,
         cborElapsed,
-        yajbeElapsed
+        yajbeElapsed,
+        (1.0 - ((double)yajbeElapsed / jsonElapsed)),
+        (1.0 - ((double)yajbeElapsed / cborElapsed))
       );
     }
     return results;
@@ -103,21 +107,27 @@ public abstract class AbstractTestEncodeDecode {
     results.addColumn("JSON Size", v -> ExamplesUtil.humanSize(((Number)v).longValue()));
     results.addColumn("CBOR Size", v -> ExamplesUtil.humanSize(((Number)v).longValue()));
     results.addColumn("Yajbe Size", v -> ExamplesUtil.humanSize(((Number)v).longValue()));
+    // encode
     results.addColumn("JSON Enc ops/sec", v -> ExamplesUtil.humanRate(((Number)v).longValue()));
     results.addColumn("CBOR Enc ops/sec", v -> ExamplesUtil.humanRate(((Number)v).doubleValue()));
     results.addColumn("Yajbe Enc ops/sec", v -> ExamplesUtil.humanRate(((Number)v).doubleValue()));
     results.addColumn("JSON Enc time", v -> ExamplesUtil.humanTimeNanos(((Number)v).longValue()));
     results.addColumn("CBOR Enc time", v -> ExamplesUtil.humanTimeNanos(((Number)v).longValue()));
     results.addColumn("Yajbe Enc time", v -> ExamplesUtil.humanTimeNanos(((Number)v).longValue()));
+    results.addColumn("Yajbe/JSON Enc", v -> String.format("%.2f%%", (double)v * 100.0));
+    results.addColumn("Yajbe/CBOR Enc", v -> String.format("%.2f%%", (double)v * 100.0));
+    // decode
     results.addColumn("JSON Dec ops/sec", v -> ExamplesUtil.humanRate(((Number)v).longValue()));
     results.addColumn("CBOR Dec ops/sec", v -> ExamplesUtil.humanRate(((Number)v).doubleValue()));
     results.addColumn("Yajbe Dec ops/sec", v -> ExamplesUtil.humanRate(((Number)v).doubleValue()));
     results.addColumn("JSON Dec time", v -> ExamplesUtil.humanTimeNanos(((Number)v).longValue()));
     results.addColumn("CBOR Dec time", v -> ExamplesUtil.humanTimeNanos(((Number)v).longValue()));
     results.addColumn("Yajbe Dec time", v -> ExamplesUtil.humanTimeNanos(((Number)v).longValue()));
+    results.addColumn("Yajbe/JSON Dec", v -> String.format("%.2f%%", (double)v * 100.0));
+    results.addColumn("Yajbe/CBOR Dec", v -> String.format("%.2f%%", (double)v * 100.0));
 
     for (final TestData data: testData) {
-      final int NRUNS = Math.max(10, (int)Math.ceil(2_000_000_000.0 / data.jsonEnc.length));
+      final long NRUNS = Math.max(10, (int)Math.ceil(2_000_000_000.0 / data.jsonEnc.length));
 
       final byte[] jsonEnc = JSON_MAPPER.writeValueAsBytes(data.input());
       final byte[] cborEnc = CBOR_MAPPER.writeValueAsBytes(data.input());
@@ -141,12 +151,16 @@ public abstract class AbstractTestEncodeDecode {
         jsonEncodeElapsed,
         cborEncodeElapsed,
         yajbeEncodeElapsed,
+        (1.0 - ((double)yajbeEncodeElapsed / jsonEncodeElapsed)),
+        (1.0 - ((double)yajbeEncodeElapsed / cborEncodeElapsed)),
         (double)NRUNS / (jsonDecodeElapsed / 1000000000.0),
         (double)NRUNS / (cborDecodeElapsed / 1000000000.0),
         (double)NRUNS / (yajbeDecodeElapsed / 1000000000.0),
         jsonDecodeElapsed,
         cborDecodeElapsed,
-        yajbeDecodeElapsed
+        yajbeDecodeElapsed,
+        (1.0 - ((double)yajbeDecodeElapsed / jsonDecodeElapsed)),
+        (1.0 - ((double)yajbeDecodeElapsed / cborDecodeElapsed))
       );
     }
 

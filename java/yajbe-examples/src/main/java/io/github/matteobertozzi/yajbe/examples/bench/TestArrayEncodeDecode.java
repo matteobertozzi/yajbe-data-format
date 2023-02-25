@@ -153,8 +153,8 @@ public class TestArrayEncodeDecode extends AbstractTestEncodeDecode {
       new TestData("map[1k]", Map[].class, randMapObjects())
     );
 
-    //final HumansTableView results = runSeparateEncodeDecode(testData);
-    final HumansTableView results = runEncodeDecode(testData);
+    final HumansTableView results = runSeparateEncodeDecode(testData);
+    //final HumansTableView results = runEncodeDecode(testData);
     System.out.println(results.addHumanView(new StringBuilder()));
     Files.writeString(Path.of("test-array.csv"), results.toCsv());
   }

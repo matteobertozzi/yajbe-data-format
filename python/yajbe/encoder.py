@@ -28,7 +28,7 @@ class FieldNameWriter:
         self._indexed_map = {}
         self._last_key = b''
         if initialFieldNames:
-            for i, name in enumerate(initialFieldNames[:0xffff]):
+            for i, name in enumerate(initialFieldNames[:65819]):
                 self._indexed_map[name] = i
 
     def encode_string(self, key: str) -> None:
@@ -53,7 +53,7 @@ class FieldNameWriter:
         else:
             self._write_full_field_name(utf8)
 
-        if len(self._indexed_map) < 0xffff:
+        if len(self._indexed_map) < 65819:
             self._indexed_map[key] = len(self._indexed_map)
         self._last_key = utf8
 
@@ -84,12 +84,15 @@ class FieldNameWriter:
     def _write_length(self, head: int, length: int):
         if length < 30:
             self._encoder._write_byte(head | length)
-        elif length <= 0xff:
+        elif length <= 284:
+            # 30 + 1byte = 284
             self._encoder._write_byte(head | 0b11110)
-            self._encoder._write_byte(length & 0xff)
-        elif length <= 0xffff:
+            self._encoder._write_byte((length - 29) & 0xff)
+        elif length <= 65819:
+            # 31 + 2byte = 65819
             self._encoder._write_byte(head | 0b11111)
-            self._encoder._write_uint(length, 2)
+            self._encoder._write_byte((length - 284) // 256)
+            self._encoder._write_byte((length - 284) & 255)
         else:
             raise Exception("unexpected too many field names: %s" % length)
 
@@ -148,6 +151,7 @@ class YajbeEncoder:
         if value <= 24:
             self._write_byte(0b010_00000 | (value - 1))
         else:
+            value -= 25
             nbytes = int_bytes_width(value)
             self._write_byte(0b010_00000 | (23 + nbytes))
             self._write_uint(value, nbytes)
@@ -157,6 +161,7 @@ class YajbeEncoder:
         if value <= 23:
             self._write_byte(0b011_00000 | value)
         else:
+            value -= 24
             nbytes = int_bytes_width(value)
             self._write_byte(0b011_00000 | (23 + nbytes))
             self._write_uint(value, nbytes)
@@ -197,9 +202,10 @@ class YajbeEncoder:
         if length <= inline_max:
             self._write_byte(head | length)
         else:
-            nbytes = int_bytes_width(length)
+            delta_length = length - inline_max
+            nbytes = int_bytes_width(delta_length)
             self._write_byte(head | (inline_max + nbytes))
-            self._write_uint(length, nbytes)
+            self._write_uint(delta_length, nbytes)
 
     def _write_byte(self, v) -> None:
         self._stream.write(v.to_bytes())
