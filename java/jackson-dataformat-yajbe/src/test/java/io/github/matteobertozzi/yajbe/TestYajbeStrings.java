@@ -48,7 +48,7 @@ public class TestYajbeStrings extends BaseYajbeTest {
     for (int i = 0; i < 60; ++i) {
       final String input = "x".repeat(i);
       final byte[] enc = YAJBE_MAPPER.writeValueAsBytes(input);
-      assertEquals(1 + i, enc.length);
+      assertEquals(1 + i, enc.length, input);
       assertEquals(input, YAJBE_MAPPER.readValue(enc, String.class));
     }
 

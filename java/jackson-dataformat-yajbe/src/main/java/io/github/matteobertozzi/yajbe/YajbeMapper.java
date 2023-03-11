@@ -49,6 +49,7 @@ import com.fasterxml.jackson.databind.deser.DataFormatReaders;
 public class YajbeMapper extends ObjectMapper {
   private static final long serialVersionUID = 1L;
 
+  /** Config name for the known field names */
   public static final String CONFIG_MAP_FIELD_NAMES = "map.field.names";
 
   /**

@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import com.fasterxml.jackson.core.Base64Variant;
@@ -29,22 +30,26 @@ import com.fasterxml.jackson.core.ObjectCodec;
 import com.fasterxml.jackson.core.base.GeneratorBase;
 import com.fasterxml.jackson.core.io.IOContext;
 
+import io.github.matteobertozzi.yajbe.YajbeEnumMapping.YajbeEnumMappingConfig;
+
 /**
  * {@link JsonGenerator} implementation that writes YAJBE encoded content.
  */
 final class YajbeGenerator extends GeneratorBase {
   private final YajbeFieldNameWriter fileNameWriter;
+  private final YajbeEnumMappingConfig enumConfig;
   private final YajbeWriter stream;
   private final IOContext ctxt;
   private final byte[] wbuffer;
 
-  YajbeGenerator(final IOContext ctxt, final int features, final ObjectCodec codec, final OutputStream stream) {
+  YajbeGenerator(final IOContext ctxt, final int features, final ObjectCodec codec, final OutputStream stream, final YajbeEnumMappingConfig enumConfig) {
     super(features, codec);
     this.ctxt = ctxt;
 
     this.wbuffer = ctxt.allocWriteEncodingBuffer(9);
     this.stream = YajbeWriter.forBufferedStream(stream, wbuffer);
     this.fileNameWriter = new YajbeFieldNameWriter(this.stream);
+    this.enumConfig = enumConfig;
   }
 
   void setInitialFieldNames(final String[] names) {
@@ -143,14 +148,22 @@ final class YajbeGenerator extends GeneratorBase {
       return;
     }
 
-    stream.writeString(text);
+    if (enumConfig != null && text.length() >= YajbeEnumMapping.MIN_ENUM_STRING_LENGTH) {
+      stream.writeStringOrEnum(enumConfig, text);
+    } else {
+      stream.writeString(text);
+    }
   }
 
   @Override
   public void writeString(final char[] buffer, final int offset, final int len) throws IOException {
     if (len != 0) {
       final String text = new String(buffer, offset, len);
-      stream.writeString(text);
+      if (enumConfig != null && len >= YajbeEnumMapping.MIN_ENUM_STRING_LENGTH) {
+        stream.writeStringOrEnum(enumConfig, text);
+      } else {
+        stream.writeString(text);
+      }
     } else {
       stream.writeEmptyString();
     }
@@ -164,7 +177,11 @@ final class YajbeGenerator extends GeneratorBase {
   @Override
   public void writeUTF8String(final byte[] buffer, final int offset, final int len) throws IOException {
     if (len != 0) {
-      stream.writeUtf8(buffer, offset, len);
+      if (enumConfig != null && len >= YajbeEnumMapping.MIN_ENUM_STRING_LENGTH) {
+        stream.writeStringOrEnum(enumConfig, new String(buffer, offset, len, StandardCharsets.UTF_8));
+      } else {
+        stream.writeUtf8(buffer, offset, len);
+      }
     } else {
       stream.writeEmptyString();
     }

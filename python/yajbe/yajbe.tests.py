@@ -191,6 +191,7 @@ class TestYajbe(unittest.TestCase):
         self.assertEqual(input, dec2x)
 
     def test_data_set_encode_decode(self):
+        import hashlib
         import json
         import gzip
         import os
@@ -207,9 +208,9 @@ class TestYajbe(unittest.TestCase):
                     continue
 
                 enc = encode_as_bytes(obj)
-                print('encode/decode', path, len(enc))
                 dec = decode_bytes(enc)
                 self.assertEqual(obj, dec)
+                print('encode/decode', path, len(enc), hashlib.sha256(enc).hexdigest())
 
     def assertEncode(self, input_obj, expected_hex: str):
         enc = encode_as_bytes(input_obj)

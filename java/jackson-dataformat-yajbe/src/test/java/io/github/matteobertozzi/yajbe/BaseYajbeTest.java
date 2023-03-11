@@ -32,16 +32,32 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
+import io.github.matteobertozzi.yajbe.YajbeEnumMapping.YajbeEnumLruMappingConfig;
+import io.github.matteobertozzi.yajbe.YajbeEnumMapping.YajbeEnumMappingConfig;
+
 public abstract class BaseYajbeTest {
   public static final long RANDOM_SEED = Long.parseLong(System.getProperty("yajbe.test.random.seed", String.valueOf(Math.round(Math.random() * Long.MAX_VALUE))));
 
   public final Random RANDOM;
-  public final ObjectMapper YAJBE_MAPPER = newObjectMapper(new YajbeMapper());
+  public final ObjectMapper YAJBE_MAPPER;
   public final ObjectMapper JSON_MAPPER = newObjectMapper(new JsonMapper());
 
   protected BaseYajbeTest() {
-    System.out.println("Running test " + getClass().getName() + " with seed " + RANDOM_SEED);
     this.RANDOM = new Random(RANDOM_SEED);
+
+    final String enumMappingType = System.getProperty("yajbe.test.enum-mapping.type");
+    if (enumMappingType == null || enumMappingType.isEmpty()) {
+      YAJBE_MAPPER = newObjectMapper(new YajbeMapper());
+    } else {
+      final YajbeEnumMappingConfig config = switch (enumMappingType) {
+        case "LRU" -> new YajbeEnumLruMappingConfig(256, 4);
+        default -> throw new IllegalArgumentException("unknown enum-mapping type " + enumMappingType);
+      };
+      YAJBE_MAPPER = newObjectMapper(new YajbeMapper(new YajbeFactory(config)));
+    }
+
+    System.out.println("Running test " + getClass().getName() + " with seed " + RANDOM_SEED +
+      " and enum-mapping type " + enumMappingType);
   }
 
   public static String toBinaryString(final byte[] buf) {

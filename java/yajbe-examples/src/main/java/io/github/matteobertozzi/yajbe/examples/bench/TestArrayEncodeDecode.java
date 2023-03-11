@@ -56,6 +56,15 @@ public class TestArrayEncodeDecode extends AbstractTestEncodeDecode {
     return block;
   }
 
+  public static int[] randIntBlockSkewed() {
+    final int[] block = new int[2 << 20];
+    for (int i = 0; i < block.length; ++i) {
+      final int v = 260 + rand.nextInt(23);
+      block[i] = rand.nextBoolean() ? v : -v;
+    }
+    return block;
+  }
+
   private static long[] randLongBlock() {
     final long[] block = new long[1 << 20];
     for (int i = 0; i < block.length; ++i) {
@@ -146,6 +155,7 @@ public class TestArrayEncodeDecode extends AbstractTestEncodeDecode {
       new TestData("inlineInt[2M]", int[].class, randInlineIntBlock()),
       new TestData("int[2M]", int[].class, randIntBlock()),
       new TestData("long[1M]", long[].class, randLongBlock()),
+      new TestData("intSk[2M]", int[].class, randIntBlockSkewed()),
       new TestData("float[2M]", float[].class, randFloatBlock()),
       new TestData("double[1M]", double[].class, randDoubleBlock()),
       new TestData("string[1M]", String[].class, randStringBlock()),

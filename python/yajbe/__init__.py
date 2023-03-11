@@ -16,3 +16,4 @@
 
 from .encoder import encode_to_stream, encode_as_bytes
 from .decoder import decode_stream, decode_bytes
+from .freq import YajbeEnumLruConfig

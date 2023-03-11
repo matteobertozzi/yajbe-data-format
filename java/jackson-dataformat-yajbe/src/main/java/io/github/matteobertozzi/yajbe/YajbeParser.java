@@ -268,26 +268,31 @@ final class YajbeParser extends ParserMinimalBase {
       }
     }
 
-    final int head = stream.read();
-    final int tokenId = TOKEN_MAP[head];
-    switch (tokenId) {
-      case TOKEN_INT_SMALL -> stream.decodeSmallInt(head);
-      case TOKEN_INT_POSITIVE -> stream.decodeIntPositive(head);
-      case TOKEN_INT_NEGATIVE -> stream.decodeIntNegative(head);
-      case TOKEN_SMALL_STRING -> stream.decodeSmallString(head);
-      case TOKEN_STRING -> stream.decodeString(head);
-      case TOKEN_SMALL_BYTES -> stream.decodeSmallBytes(head);
-      case TOKEN_BYTES -> stream.decodeBytes(head);
-      case TOKEN_FLOAT_VLE -> stream.decodeFloatVle();
-      case TOKEN_FLOAT_32 -> stream.decodeFloat32();
-      case TOKEN_FLOAT_64 -> stream.decodeFloat64();
-      case TOKEN_BIG_DECIMAL -> stream.decodeBigDecimal();
-      case TOKEN_ARRAY -> startFixedArray(head);
-      case TOKEN_ARRAY_EOF -> startEofArray();
-      case TOKEN_OBJECT -> startFixedObject(head);
-      case TOKEN_OBJECT_EOF -> startEofObject();
-    }
-    return _currToken = JSON_TOKEN_MAP[tokenId];
+    do {
+      final int head = stream.read();
+      final int tokenId = TOKEN_MAP[head];
+      switch (tokenId) {
+        case TOKEN_INT_SMALL -> stream.decodeSmallInt(head);
+        case TOKEN_INT_POSITIVE -> stream.decodeIntPositive(head);
+        case TOKEN_INT_NEGATIVE -> stream.decodeIntNegative(head);
+        case TOKEN_SMALL_STRING -> stream.decodeSmallString(head);
+        case TOKEN_STRING -> stream.decodeString(head);
+        case TOKEN_ENUM_CONFIG -> stream.decodeEnumConfig(head);
+        case TOKEN_ENUM_STRING -> stream.decodeEnumString(head);
+        case TOKEN_SMALL_BYTES -> stream.decodeSmallBytes(head);
+        case TOKEN_BYTES -> stream.decodeBytes(head);
+        case TOKEN_FLOAT_VLE -> stream.decodeFloatVle();
+        case TOKEN_FLOAT_32 -> stream.decodeFloat32();
+        case TOKEN_FLOAT_64 -> stream.decodeFloat64();
+        case TOKEN_BIG_DECIMAL -> stream.decodeBigDecimal();
+        case TOKEN_ARRAY -> startFixedArray(head);
+        case TOKEN_ARRAY_EOF -> startEofArray();
+        case TOKEN_OBJECT -> startFixedObject(head);
+        case TOKEN_OBJECT_EOF -> startEofObject();
+      }
+      _currToken = JSON_TOKEN_MAP[tokenId];
+    } while (_currToken == null);
+    return _currToken;
   }
 
   @Override

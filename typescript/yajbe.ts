@@ -15,9 +15,26 @@
  * limitations under the License.
  */
 
-export function encode(value: unknown, options?: { bufSize?: number, fieldNames?: string[] }): Uint8Array {
+export interface YajbeEnumLruConfig {
+  minFreq: number;
+  lruSize: number;
+}
+
+export interface YajbeEncoderEnumConfig {
+  type: 'LRU';
+  specs: YajbeEnumLruConfig;
+}
+
+export interface YajbeEncoderOptions {
+  bufSize?: number;
+  sortKeys?: boolean;
+  fieldNames?: string[];
+  enumConfig?: YajbeEncoderEnumConfig;
+};
+
+export function encode(value: unknown, options?: YajbeEncoderOptions): Uint8Array {
   const writer = new InMemoryBytesWriter(options?.bufSize);
-  const encoder = new YajbeEncoder(writer, options?.fieldNames);
+  const encoder = new YajbeEncoder(writer, options);
   encoder.encodeItem(value);
   encoder.flush();
   return writer.slice();
@@ -408,11 +425,17 @@ export class YajbeEncoder extends DataEncoder {
   private readonly textEncoder: TextEncoder;
   private readonly writer: BytesWriter;
 
-  constructor(writer: BytesWriter, initialFieldNames?: string[]) {
+  private readonly sortKeys: boolean;
+  private readonly enumConfig?: YajbeEncoderEnumConfig;
+  private enumMapping?: EnumLruMapping;
+
+  constructor(writer: BytesWriter, options?: YajbeEncoderOptions) {
     super();
     this.textEncoder = new TextEncoder();
-    this.fieldNameWriter = new FieldNameWriter(writer, this.textEncoder, initialFieldNames);
+    this.fieldNameWriter = new FieldNameWriter(writer, this.textEncoder, options?.fieldNames);
     this.writer = writer;
+    this.sortKeys = options?.sortKeys ?? false;
+    this.enumConfig = options?.enumConfig;
   }
 
   flush(): void {
@@ -458,7 +481,8 @@ export class YajbeEncoder extends DataEncoder {
 
   protected encodeObject(dict: {[key: string]: unknown}): void {
     const keys = Object.keys(dict);
-    //keys.sort();
+    if (this.sortKeys) keys.sort();
+
     this.writeLength(0b0011_0000, 10, keys.length);
     for (let i = 0; i < keys.length; ++i) {
       const key = keys[i];
@@ -480,9 +504,45 @@ export class YajbeEncoder extends DataEncoder {
   }
 
   protected encodeString(value: string): void {
+    if (this.enumConfig && this.writeStringOrEnum(value)) {
+      return;
+    }
+
     const utf8data = this.textEncoder.encode(value);
     this.writeLength(0b11_000000, 59, utf8data.length);
     this.writer.writeUint8Array(utf8data);
+  }
+
+  private writeStringOrEnum(text: string): boolean {
+    if (!this.enumMapping) this.newEnumMapping();
+
+    const index = this.enumMapping!.add(text);
+    if (index < 0) return false;
+
+    if (index <= 0xff) {
+      this.writer.writeUint8(0b00001001);
+      this.writer.writeUint8(index);
+    } else if (index <= 0xffff) {
+      this.writer.writeUint8(0b00001010);
+      this.writer.writeUint(index, 2);
+    } else {
+      throw new Error("enum index too large " + index);
+    }
+    return true;
+  }
+
+  private newEnumMapping(): void {
+    const config = this.enumConfig!;
+    switch (config.type) {
+      case 'LRU':
+        const specs: YajbeEnumLruConfig = config.specs;
+        this.enumMapping = new EnumLruMapping(specs.lruSize, specs.minFreq);
+
+        this.writer.writeUint8(0b00001000);
+        this.writer.writeUint8(26 - Math.clz32(specs.lruSize));
+        this.writer.writeUint8(specs.minFreq - 1);
+        return;
+    }
   }
 
   private writeLength(head: number, inlineMax: number, length: number): void {
@@ -514,27 +574,40 @@ export class YajbeDecoder {
   }
 
   decodeItem(): unknown {
-    const head = this.buffer.readUint8();
-    if ((head & 0b11_000000) == 0b11_000000) {
-      return this.decodeString(head);
-    } else if ((head & 0b10_000000) == 0b10_000000) {
-      return this.decodeBytes(head);
-    } else if ((head & 0b010_00000) == 0b010_00000) {
-      return this.decodeInt(head);
-    } else if ((head & 0b0011_0000) == 0b0011_0000) {
-      return this.decodeObject(head);
-    } else if ((head & 0b0010_0000) == 0b0010_0000) {
-      return this.decodeArray(head);
-    } else if ((head & 0b000001_00) == 0b000001_00) {
-      return this.decodeFloat(head);
-    } else switch (head) {
-      // null
-      case 0b00000000: return null;
-      // boolean
-      case 0b00000010: return false;
-      case 0b00000011: return true;
+    while (true) {
+      const head = this.buffer.readUint8();
+      if ((head & 0b11_000000) == 0b11_000000) {
+        return this.decodeString(head);
+      } else if ((head & 0b10_000000) == 0b10_000000) {
+        return this.decodeBytes(head);
+      } else if ((head & 0b010_00000) == 0b010_00000) {
+        return this.decodeInt(head);
+      } else if ((head & 0b0011_0000) == 0b0011_0000) {
+        return this.decodeObject(head);
+      } else if ((head & 0b0010_0000) == 0b0010_0000) {
+        return this.decodeArray(head);
+      } else if ((head & 0b00001_000) == 0b00001_000) {
+        switch (head) {
+          // enum config
+          case 0b00001000:
+            this.decodeEnumConfig(head);
+            break;
+          // enum string
+          case 0b00001001: return this.decodeEnumString(head);
+          case 0b00001010: return this.decodeEnumString(head);
+          default: throw new Error('unsupported item head ' + head.toString(2));
+        }
+      } else if ((head & 0b000001_00) == 0b000001_00) {
+        return this.decodeFloat(head);
+      } else switch (head) {
+        // null
+        case 0b00000000: return null;
+        // boolean
+        case 0b00000010: return false;
+        case 0b00000011: return true;
+        default: throw new Error('unsupported item head ' + head.toString(2));
+      }
     }
-    throw new Error('unsupported head ' + head);
   }
 
   private decodeInt(head: number): number {
@@ -570,7 +643,9 @@ export class YajbeDecoder {
 
   private decodeString(head: number): string {
     const buffer = this.decodeBytes(head);
-    return this.textDecoder.decode(buffer);
+    const text = this.textDecoder.decode(buffer);
+    this.enumMapping?.add(text);
+    return text;
   }
 
   private readHasMore(): boolean {
@@ -622,6 +697,38 @@ export class YajbeDecoder {
       retObject[key] = this.decodeItem();
     }
     return retObject;
+  }
+
+
+  // ====================================================================================================
+  //  Enum/String related
+  // ====================================================================================================
+  private enumMapping?: EnumLruMapping;
+
+  private decodeEnumConfig(head: number): void {
+    const h1 = this.buffer.readUint8();
+    switch ((h1 >>> 4) & 0b1111) {
+      case 0: // LRU
+        const minFreq = this.buffer.readUint8();
+        const lruSize = 1 << (5 + (h1 & 0b1111));
+        this.enumMapping = new EnumLruMapping(lruSize, 1 + minFreq);
+        break;
+    }
+  }
+
+  private decodeEnumString(head: number): string {
+    switch (head) {
+      case 0b00001001: {
+        const index = this.buffer.readUint8();
+        return this.enumMapping!.getAt(index);
+      }
+      case 0b00001010: {
+        const index = this.buffer.readUint(2);
+        return this.enumMapping!.getAt(index);
+      }
+      default:
+        throw new Error("unsupported " + head.toString(2));
+    }
   }
 }
 
@@ -825,5 +932,226 @@ export class FieldNameReader {
     utf8.set(kpart, prefix);
     utf8.set(this.lastKey.slice(this.lastKey.length - suffix), prefix + length);
     return this.addToIndex(utf8);
+  }
+}
+
+
+export class EnumLruMapping {
+  readonly lruSize: number;
+  readonly minFreq: number;
+
+  private buckets: (EnumFreqItemNode | null)[];
+  private indexed: EnumFreqItemNode[];
+  private lruHead: EnumFreqItemNode;
+  private indexedCount: number;
+  private lruUsed: number;
+
+  constructor(lruSize: number, minFreq: number) {
+    this.lruSize = lruSize;
+    this.minFreq = minFreq;
+
+    this.indexed = [];
+    this.lruHead = new EnumFreqItemNode();
+
+    this.buckets = new Array(this.tableSizeForItems(lruSize));
+    this.buckets.fill(null);
+
+    this.indexedCount = 0;
+    this.lruUsed = 0;
+  }
+
+  hash(key: string): number {
+    let h = 0;
+    for (let i = 0; i < key.length; ++i) {
+      h = 31 * h + (key.charCodeAt(i) & 0xff);
+    }
+    return (h ^ (h >>> 16)) & 0x7fffffff;
+  }
+
+  getAt(index: number): string {
+    return this.indexed[index].key!;
+  }
+
+  add(key: string): number {
+    if (key.length < 3) return -1;
+
+    const hash = this.hash(key);
+    const bucketIndex = hash & (this.buckets.length - 1);
+
+    const root = this.buckets[bucketIndex];
+    const item = this.findNode(root, key, hash);
+    if (item == null) {
+      if (this.indexedCount == 0xff) return -1;
+      this.buckets[bucketIndex] = this.addNode(key, hash, root);
+      return -1;
+    }
+
+    // already indexed
+    if (item.index >= 0) {
+      item.freq++;
+      return item.index;
+    }
+
+    if (this.indexedCount == 0xff) return -1;
+    return this.incFreq(item);
+  }
+
+  private findNode(node: EnumFreqItemNode | null, key: string, keyHash: number): EnumFreqItemNode | null {
+    while (node != null && !node.match(key, keyHash)) {
+      node = node.hashNext;
+    }
+    return node;
+  }
+
+  private tableSizeForItems(expectedItems: number): number {
+    return 1 << (31 - Math.clz32((expectedItems * 2) - 1));
+  }
+
+  private addNode(key: string, keyHash: number, hashNext: EnumFreqItemNode | null): EnumFreqItemNode {
+    let node: EnumFreqItemNode;
+    if (this.lruUsed == this.lruSize) {
+      if ((node = this.lruHead.lruPrev) == hashNext) {
+        hashNext = hashNext.hashNext;
+      }
+      this.removeKey(node);
+    } else {
+      node = this.lruHead.isEmpty() ? this.lruHead : new EnumFreqItemNode();
+      this.lruUsed++;
+    }
+
+    node.hashNext = hashNext;
+    node.set(key, keyHash);
+    this.moveToLruFront(node);
+    return node;
+  }
+
+  private incFreq(item: EnumFreqItemNode): number {
+    if (++item.freq < this.minFreq) {
+      this.moveToLruFront(item);
+      return -1;
+    }
+
+    if (this.indexedCount == this.indexed.length) {
+      this.resizeTable();
+    }
+
+    if (item == this.lruHead) {
+      if (item == item.lruNext) {
+        this.lruHead = new EnumFreqItemNode();
+      } else {
+        this.moveToLruFront(item.lruNext!);
+      }
+    }
+
+    // first we add the item to the indexed list, next time we will return the index
+    item.unlink();
+    this.indexed.push(item);
+    item.setIndex(this.indexedCount++);
+    this.lruUsed--;
+    return -1;
+  }
+
+  private removeKey(node: EnumFreqItemNode): void {
+    const bucketIndex = node.hash & (this.buckets.length - 1);
+    node.set(null, -1);
+
+    let hashNode = this.buckets[bucketIndex]!;
+    if (hashNode == node) {
+      this.buckets[bucketIndex] = hashNode.hashNext;
+      return;
+    }
+
+    while (hashNode.hashNext != node) {
+      hashNode = hashNode.hashNext!;
+    }
+    hashNode.hashNext = node.hashNext;
+  }
+
+  private moveToLruFront(node: EnumFreqItemNode): void {
+    if (node == this.lruHead) return;
+
+    node.unlink();
+
+    const tail = this.lruHead.lruPrev;
+    node.lruNext = this.lruHead;
+    node.lruPrev = tail;
+    tail.lruNext = node;
+    this.lruHead.lruPrev = node;
+    this.lruHead = node;
+  }
+
+  private resizeTable(): void {
+    const newSize = this.tableSizeForItems(this.lruSize + this.indexedCount);
+    if (newSize == this.buckets.length) return;
+
+    const mask = newSize - 1;
+    const newBuckets: (EnumFreqItemNode | null)[] = new Array<EnumFreqItemNode | null>(newSize);
+    newBuckets.fill(null);
+
+    // recompute the indexed keys map
+    for (let i = 0; i < this.indexedCount; ++i) {
+      const node = this.indexed[i];
+      const index = node.hash & mask;
+      node.hashNext = newBuckets[index];
+      newBuckets[index] = node;
+    }
+
+    // recompute the lru keys map
+    let node = this.lruHead;
+    do {
+      const index = node.hash & mask;
+      node.hashNext = newBuckets[index];
+      newBuckets[index] = node;
+
+      node = node.lruNext;
+    } while (node != this.lruHead);
+
+    this.buckets = newBuckets;
+  }
+}
+
+class EnumFreqItemNode {
+  hashNext: EnumFreqItemNode | null;
+  lruNext: EnumFreqItemNode;
+  lruPrev: EnumFreqItemNode;
+  key: string | null;
+  hash: number;
+  index: number;
+  freq: number;
+
+  constructor() {
+    this.hashNext = null;
+    this.lruNext = this;
+    this.lruPrev = this;
+    this.key = null;
+    this.hash = -1;
+    this.index = -1;
+    this.freq = 0;
+  }
+
+  set(key: string | null, hash: number): void {
+    this.key = key;
+    this.hash = hash;
+    this.freq = 1;
+    this.index = -1;
+  }
+
+  setIndex(index: number): void {
+    this.index = index;
+    this.lruNext = this;
+    this.lruPrev = this;
+  }
+
+  isEmpty(): boolean {
+    return this.key == null;
+  }
+
+  match(otherKey: string, otherHash: number): boolean {
+    return this.hash == otherHash && this.key === otherKey;
+  }
+
+  unlink(): void {
+    this.lruPrev!.lruNext = this.lruNext;
+    this.lruNext!.lruPrev = this.lruPrev;
   }
 }

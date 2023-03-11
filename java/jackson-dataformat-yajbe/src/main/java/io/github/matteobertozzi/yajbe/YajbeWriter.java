@@ -23,6 +23,9 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 
+import io.github.matteobertozzi.yajbe.YajbeEnumMapping.YajbeEnumLruMappingConfig;
+import io.github.matteobertozzi.yajbe.YajbeEnumMapping.YajbeEnumMappingConfig;
+
 abstract class YajbeWriter {
   @FunctionalInterface
   public interface RawBufferWriter {
@@ -221,6 +224,44 @@ abstract class YajbeWriter {
   public final void writeUtf8(final byte[] utf8, final int off, final int len) throws IOException {
     writeLength(0b11_000000, 59, len);
     write(utf8, off, len);
+  }
+
+  private YajbeEnumMapping enumMapping;
+  public final void writeStringOrEnum(final YajbeEnumMappingConfig enumConfig, final String text) throws IOException {
+    if (enumMapping == null) newEnumMapping(enumConfig);
+
+    final int index = enumMapping.add(text);
+    if (index < 0) {
+      writeString(text);
+      return;
+    }
+
+    //System.out.println("WRITE ENUM " + index + " -> " + text);
+    final byte[] buf = rawBuffer();
+    if (index <= 0xff) {
+      final int bufOff = rawBufferOffset(2);
+      buf[bufOff] = (byte)0b00001001;
+      buf[bufOff + 1] = (byte)index;
+    } else if (index <= 0xffff) {
+      final int bufOff = rawBufferOffset(3);
+      buf[bufOff] = (byte)0b00001010;
+      writeFixed(buf, bufOff + 1, index, 2);
+    } else {
+      throw new IllegalArgumentException("enum index too large " + index);
+    }
+  }
+
+  private void newEnumMapping(final YajbeEnumMappingConfig config) throws IOException {
+    this.enumMapping = YajbeEnumMapping.fromConfig(config);
+
+    final byte[] buf = rawBuffer();
+    final int bufOff = rawBufferOffset(3);
+    buf[bufOff] = (byte) 0b00001000;
+    if (config instanceof final YajbeEnumLruMappingConfig lruConfig) {
+      buf[bufOff + 1] = (byte) (26 - Integer.numberOfLeadingZeros(lruConfig.lruSize()));
+      buf[bufOff + 2] = (byte) (lruConfig.minFreq() - 1);
+      return;
+    }
   }
 
   // ====================================================================================================

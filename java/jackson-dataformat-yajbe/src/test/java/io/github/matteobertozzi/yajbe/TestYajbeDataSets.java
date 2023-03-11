@@ -17,10 +17,16 @@
 
 package io.github.matteobertozzi.yajbe;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 
@@ -32,24 +38,26 @@ import com.fasterxml.jackson.databind.JsonNode;
 public class TestYajbeDataSets extends BaseYajbeTest {
   @ParameterizedTest
   @MethodSource("dataSetPaths")
-  public void testEncodeDecode(final File file) throws IOException {
+  public void testEncodeDecode(final File file) throws IOException, NoSuchAlgorithmException {
     final JsonNode inputData = parseFile(file);
 
     // round 1 - encode/decode and check if the decoded data is the same as the input data
     final byte[] enc1 = YAJBE_MAPPER.writeValueAsBytes(inputData);
-    //final JsonNode dec1 = YAJBE_MAPPER.readValue(enc1, JsonNode.class);
-    //assertEquals(inputData, dec1);
+    final JsonNode dec1 = YAJBE_MAPPER.readValue(enc1, JsonNode.class);
+    assertEquals(inputData, dec1);
 
     // round 2 - encode/decode from the decoded data of the step before. the result should be the same
-    //final byte[] enc2 = YAJBE_MAPPER.writeValueAsBytes(dec1);
-    //final JsonNode dec2 = YAJBE_MAPPER.readValue(enc2, JsonNode.class);
-    //assertArrayEquals(enc1, enc2);
-    //assertEquals(dec1, dec2);
+    final byte[] enc2 = YAJBE_MAPPER.writeValueAsBytes(dec1);
+    final JsonNode dec2 = YAJBE_MAPPER.readValue(enc2, JsonNode.class);
+    assertArrayEquals(enc1, enc2);
+    assertEquals(dec1, dec2);
 
     // just check the size comparison between JSON and YAJBE
     final byte[] json = JSON_MAPPER.writeValueAsBytes(inputData);
-    System.out.printf("test-data %s -> JSON:%s -> YAJBE:%s -> SizeDiff:%s%%%n",
-      file, humanSize(json.length), humanSize(enc1.length), Math.round((1.0 - ((double)enc1.length / json.length)) * 100));
+
+    System.out.printf("test-data %s -> JSON:%s -> YAJBE:%s (%d) -> SizeDiff:%s%% - %s%n",
+      file, humanSize(json.length), humanSize(enc1.length), enc1.length, Math.round((1.0 - ((double)enc1.length / json.length)) * 100),
+      HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(enc1)));
   }
 
   private JsonNode parseFile(final File file) throws IOException {
@@ -69,7 +77,6 @@ public class TestYajbeDataSets extends BaseYajbeTest {
   private static Stream<File> dataSetPaths() {
     final ArrayList<File> testFiles = new ArrayList<>();
     fetchTestDataSets(testFiles, new File("../../test-data"));
-    //testFiles.add(new File("../../test-data/data_5.json.gz"));
     System.out.println("Datasets: " + testFiles);
     return testFiles.stream();
   }

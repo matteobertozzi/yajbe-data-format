@@ -102,11 +102,43 @@ abstract class YajbeReader {
   // ====================================================================================================
   public final void decodeSmallString(final int head) throws IOException {
     strValue = readString(head & 0b111111);
+    if (enumMapping != null) enumMapping.add(strValue);
   }
 
   public final void decodeString(final int head) throws IOException {
     final int length = 59 + readFixedInt((head & 0b111111) - 59);
     strValue = readString(length);
+    if (enumMapping != null) enumMapping.add(strValue);
+  }
+
+  // ====================================================================================================
+  //  Enum/String related
+  // ====================================================================================================
+  private YajbeEnumMapping enumMapping;
+
+  public final void decodeEnumConfig(final int head) throws IOException {
+    final int h1 = read();
+    switch ((h1 >>> 4) & 0b1111) {
+      case 0: // LRU
+        final int freq = read();
+        enumMapping = new YajbeEnumLruMapping(1 << (5 + (h1 & 0b1111)), 1 + freq);
+        break;
+    }
+  }
+
+  public final void decodeEnumString(final int head) throws IOException {
+    switch (head) {
+      case 0b00001001: {
+        final int index = read();
+        strValue = enumMapping.get(index);
+        return;
+      }
+      case 0b00001010: {
+        final int index = readFixedInt(2);
+        strValue = enumMapping.get(index);
+        return;
+      }
+    }
   }
 
   // ====================================================================================================

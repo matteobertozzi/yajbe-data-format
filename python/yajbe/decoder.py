@@ -17,14 +17,15 @@
 import struct
 import io
 
+from freq import EnumLruMapping
 
 class FieldNameReader:
-    def __init__(self, decoder, initialFieldNames=None) -> None:
+    def __init__(self, decoder, initial_field_names: list[str] = None) -> None:
         self._decoder = decoder
         self._indexed_names = []
         self._last_key = b''
-        if initialFieldNames:
-            for name in initialFieldNames[:65819]:
+        if initial_field_names:
+            for name in initial_field_names[:65819]:
                 self._indexed_names.append(name.encode('utf-8'))
 
     def decode_string(self) -> str:
@@ -83,35 +84,47 @@ class FieldNameReader:
 
 
 class YajbeDecoder:
-    def __init__(self, stream: io.BufferedReader, initialFieldNames=None) -> None:
+    def __init__(self, stream: io.BufferedReader, initial_field_names: list[str] = None) -> None:
         self._stream = stream
-        self._field_name_reader = FieldNameReader(self, initialFieldNames)
+        self._field_name_reader = FieldNameReader(self, initial_field_names)
+        self._enum_mapping = None
 
     def decode_item(self):
-        head = self._read_byte()
-        if (head & 0b11_000000) == 0b11_000000:
-            return self._decode_string(head)
-        if (head & 0b10_000000) == 0b10_000000:
-            return self._decode_bytes(head)
-        if (head & 0b010_00000) == 0b010_00000:
-            return self._decode_int(head)
-        if (head & 0b0011_0000) == 0b0011_0000:
-            return self._decode_object(head)
-        if (head & 0b0010_0000) == 0b0010_0000:
-            return self._decode_array(head)
-        if (head & 0b000001_00) == 0b000001_00:
-            return self._decode_float(head)
-        match head:
-            case 0b00000000:
-                return None
-            case 0b00000001:
-                return None
-            case 0b00000010:
-                return False
-            case 0b00000011:
-                return True
-            case other:
-                raise TypeError("unsupported head " + bin(other))
+        while True:
+            head = self._read_byte()
+            if (head & 0b11_000000) == 0b11_000000:
+                return self._decode_string(head)
+            if (head & 0b10_000000) == 0b10_000000:
+                return self._decode_bytes(head)
+            if (head & 0b010_00000) == 0b010_00000:
+                return self._decode_int(head)
+            if (head & 0b0011_0000) == 0b0011_0000:
+                return self._decode_object(head)
+            if (head & 0b0010_0000) == 0b0010_0000:
+                return self._decode_array(head)
+            if (head & 0b00001_000) == 0b00001_000:
+                match head:
+                    # enum config
+                    case 0b00001000:
+                        self._decode_enum_config(head)
+                        continue
+                    # enum string
+                    case 0b00001001: return self._decode_enum_string(head)
+                    case 0b00001010: return self._decode_enum_string(head)
+                    case other: raise Exception('unsupported item head ' + bin(other))
+            if (head & 0b000001_00) == 0b000001_00:
+                return self._decode_float(head)
+            match head:
+                case 0b00000000:
+                    return None
+                case 0b00000001:
+                    return None
+                case 0b00000010:
+                    return False
+                case 0b00000011:
+                    return True
+                case other:
+                    raise Exception("unsupported head " + bin(other))
 
     def _decode_bytes(self, head: int) -> bytes:
         w = head & 0b111111
@@ -120,7 +133,31 @@ class YajbeDecoder:
 
     def _decode_string(self, head: int) -> str:
         utf8 = self._decode_bytes(head)
-        return utf8.decode('utf-8')
+        text = utf8.decode('utf-8')
+        if self._enum_mapping is not None:
+            self._enum_mapping.add(text)
+        return text
+
+    def _decode_enum_config(self, head: int) -> None:
+        h1 = self._read_byte();
+        match ((h1 >> 4) & 0b1111):
+            case 0:
+                min_freq = self._read_byte()
+                lru_size = 1 << (5 + (h1 & 0b1111))
+                self._enum_mapping = EnumLruMapping(lru_size, 1 + min_freq)
+            case other:
+                raise Exception('unsupported enum type ' + other)
+
+    def _decode_enum_string(self, head: int) -> str:
+        match head:
+            case 0b00001001:
+                index = self._read_byte()
+                return self._enum_mapping.get(index)
+            case 0b00001010:
+                index = self._read_uint(2)
+                return self._enum_mapping.get(index)
+            case other:
+                raise Exception('unsupported enum index type ' + other)
 
     def _decode_int(self, head: int) -> int:
         signed = (head & 0b011_00000) == 0b011_00000
@@ -207,14 +244,14 @@ class YajbeDecoder:
         return value
 
 
-def decode_stream(stream: io.BufferedReader, initialFieldNames=None):
+def decode_stream(stream: io.BufferedReader, initial_field_names: list[str] = None):
     if not isinstance(stream, io.BufferedReader):
         raise Exception('expected a buffered stream')
 
-    decoder = YajbeDecoder(stream, initialFieldNames)
+    decoder = YajbeDecoder(stream, initial_field_names)
     return decoder.decode_item()
 
 
-def decode_bytes(data: bytes, initialFieldNames=None):
+def decode_bytes(data: bytes, initial_field_names: list[str] = None):
     with io.BufferedReader(io.BytesIO(data)) as stream:
-        return decode_stream(stream, initialFieldNames)
+        return decode_stream(stream, initial_field_names)

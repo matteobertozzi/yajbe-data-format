@@ -17,18 +17,19 @@
 import struct
 import io
 
+from freq import EnumLruMapping, YajbeEncoderEnumConfig, YajbeEnumLruConfig
 
 def int_bytes_width(v: int) -> int:
     return (v.bit_length() + 7) // 8 if v != 0 else 1
 
 
 class FieldNameWriter:
-    def __init__(self, encoder, initialFieldNames=None) -> None:
+    def __init__(self, encoder, initial_field_names: list[str] = None) -> None:
         self._encoder = encoder
         self._indexed_map = {}
         self._last_key = b''
-        if initialFieldNames:
-            for i, name in enumerate(initialFieldNames[:65819]):
+        if initial_field_names:
+            for i, name in enumerate(initial_field_names[:65819]):
                 self._indexed_map[name] = i
 
     def encode_string(self, key: str) -> None:
@@ -116,9 +117,11 @@ class FieldNameWriter:
 
 
 class YajbeEncoder:
-    def __init__(self, stream: io.BufferedIOBase, initialFieldNames=None) -> None:
+    def __init__(self, stream: io.BufferedIOBase, initial_field_names: list[str] = None, enum_config: YajbeEncoderEnumConfig = None) -> None:
         self._stream = stream
-        self._field_name_writer = FieldNameWriter(self, initialFieldNames)
+        self._field_name_writer = FieldNameWriter(self, initial_field_names)
+        self._enum_config = enum_config
+        self._enum_mapping = None
         self._types_map = {
             bool: self.encode_bool,
             int: self.encode_int,
@@ -128,6 +131,7 @@ class YajbeEncoder:
             str: self.encode_string,
             list: self.encode_array,
             tuple: self.encode_array,
+            set: self.encode_array,
             dict: self.encode_object,
         }
 
@@ -178,9 +182,40 @@ class YajbeEncoder:
         self._stream.write(data)
 
     def encode_string(self, value: str) -> None:
+        if self._enum_config and self.encode_enum(value):
+            return
+
         utf8 = value.encode('utf-8')
         self._write_length(0b11_000000, 59, len(utf8))
         self._stream.write(utf8)
+
+    def encode_enum(self, text: str) -> bool:
+        if self._enum_mapping is None:
+            self.new_enum_mapping()
+
+        index = self._enum_mapping.add(text)
+        if index < 0: return False
+
+        if index <= 0xff:
+            self._write_byte(0b00001001)
+            self._write_byte(index)
+        elif index <= 0xffff:
+            self._write_byte(0b00001010)
+            self._write_uint(index, 2)
+        else:
+            raise Exception("enum index too large " + index)
+        return True
+
+    def new_enum_mapping(self) -> None:
+        config = self._enum_config
+        match config.TYPE:
+            case 'LRU':
+                self._enum_mapping = EnumLruMapping(config.lru_size, config.min_freq)
+
+                self._write_byte(0b00001000)
+                self._write_byte(config.lru_size.bit_length() - 6)
+                self._write_byte(config.min_freq - 1)
+                return
 
     def encode_bytes(self, value: bytes) -> None:
         self._write_length(0b10_000000, 59, len(value))
@@ -207,7 +242,7 @@ class YajbeEncoder:
             self._write_byte(head | (inline_max + nbytes))
             self._write_uint(delta_length, nbytes)
 
-    def _write_byte(self, v) -> None:
+    def _write_byte(self, v: int) -> None:
         self._stream.write(v.to_bytes())
 
     def _write_bytes(self, value: bytes) -> None:
@@ -220,12 +255,12 @@ class YajbeEncoder:
         self._stream.write(buf)
 
 
-def encode_to_stream(stream: io.BufferedIOBase, value, initialFieldNames=None) -> None:
-    decoder = YajbeEncoder(stream, initialFieldNames)
+def encode_to_stream(stream: io.BufferedIOBase, value, initial_field_names: list[str] = None, enum_config: YajbeEncoderEnumConfig = None) -> None:
+    decoder = YajbeEncoder(stream, initial_field_names, enum_config)
     decoder.encode_item(value)
 
 
-def encode_as_bytes(value, initialFieldNames=None) -> bytes:
+def encode_as_bytes(value, initial_field_names: list[str] = None, enum_config: YajbeEncoderEnumConfig = None) -> bytes:
     with io.BytesIO() as stream:
-        encode_to_stream(stream, value, initialFieldNames)
+        encode_to_stream(stream, value, initial_field_names, enum_config)
         return stream.getvalue()

@@ -26,6 +26,8 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.io.IOContext;
 
+import io.github.matteobertozzi.yajbe.YajbeEnumMapping.YajbeEnumMappingConfig;
+
 /**
  * Factory used for constructing {@link YajbeParser} and {@link YajbeGenerator}
  * instances; both of which handle
@@ -41,6 +43,26 @@ import com.fasterxml.jackson.core.io.IOContext;
  */
 public class YajbeFactory extends JsonFactory {
   private static final long serialVersionUID = 1; // 2.6
+
+  /** the enum mapping configuration that will be passed to the YajbeGenerator */
+  private final YajbeEnumMappingConfig enumConfig;
+
+  /**
+   * Creates a new YajbeFactory without enum mapping
+   */
+  public YajbeFactory() {
+    super();
+    this.enumConfig = null;
+  }
+
+  /**
+   * Creates a new YajbeFactory with the specified enum mapping config
+   * @param enumConfig the enum-mapping configuration
+   */
+  public YajbeFactory(final YajbeEnumMappingConfig enumConfig) {
+    this.enumConfig = enumConfig;
+  }
+
 
   @Override public String getFormatName() { return "YAJBE"; }
 
@@ -76,6 +98,6 @@ public class YajbeFactory extends JsonFactory {
 
   @Override
   protected YajbeGenerator _createUTF8Generator(final OutputStream out, final IOContext ctxt) {
-    return new YajbeGenerator(ctxt, _generatorFeatures, _objectCodec, out);
+    return new YajbeGenerator(ctxt, _generatorFeatures, _objectCodec, out, enumConfig);
   }
 }

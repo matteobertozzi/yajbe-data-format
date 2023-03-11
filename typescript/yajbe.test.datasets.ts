@@ -19,6 +19,15 @@ import { assertEquals } from 'https://deno.land/std/testing/asserts.ts';
 import { Buffer } from "https://deno.land/std@0.178.0/io/buffer.ts";
 import * as YAJBE from './yajbe.ts';
 
+function hex(digest: ArrayBuffer): string {
+  const bytes = new Uint8Array(digest);
+  const items: string[] = [];
+  for (let i = 0; i < bytes.byteLength; ++i) {
+    items.push(bytes[i].toString(16).padStart(2, '0'));
+  }
+  return items.join('');
+}
+
 Deno.test('data-sets.encodeDecode', async () => {
   const path = '../test-data/';
   for await (const entry of Deno.readDir(path)) {
@@ -38,9 +47,20 @@ Deno.test('data-sets.encodeDecode', async () => {
     }
 
     console.log(entry);
+
+    let startTime = performance.now();
     const obj = JSON.parse(rawJson);
+    const json = JSON.stringify(obj);
+    let elapsed = performance.now() - startTime;
+    console.log(entry.name, 'json decode/encode took', elapsed);
+
+    startTime = performance.now();
     const enc = YAJBE.encode(obj, {bufSize: rawJson.length});
     const dec = YAJBE.decode(enc);
+    elapsed = performance.now() - startTime;
     assertEquals(obj, dec);
+
+    const digest = await crypto.subtle.digest('sha-256', enc);
+    console.log(entry.name, 'yajbe encode/decode took', elapsed, hex(digest));
   }
 });

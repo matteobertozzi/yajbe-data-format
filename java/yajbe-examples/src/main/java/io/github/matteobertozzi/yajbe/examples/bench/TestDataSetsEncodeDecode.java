@@ -32,10 +32,7 @@ public class TestDataSetsEncodeDecode extends AbstractTestEncodeDecode {
   public static void main(final String[] args) throws Exception {
     final ArrayList<TestData> testData = new ArrayList<>();
     foreachTestData(new File("../../test-data/"), (file, node) -> {
-      final byte[] yajbeEnc = YAJBE_MAPPER.writeValueAsBytes(node);
-      final byte[] jsonEnc = JSON_MAPPER.writeValueAsBytes(node);
-      final byte[] cborEnc = CBOR_MAPPER.writeValueAsBytes(node);
-      testData.add(new TestData(file.getName(), JsonNode.class, node, jsonEnc, cborEnc, yajbeEnc));
+      testData.add(new TestData(file.getName(), JsonNode.class, node));
     });
     testData.sort((a, b) -> Long.compare(b.jsonEnc().length, a.jsonEnc().length));
 
