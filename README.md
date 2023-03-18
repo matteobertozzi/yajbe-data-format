@@ -13,8 +13,8 @@ We wanted to remove the overhead of the JSON format (especially field names), bu
 The main languages we use are Java and Javascript/Typescript, so the idea was to replace the JsonMapper class from Jackson (Java) and the JSON.stringify()/parse() from javascript with the new one and everything will be faster _(the same will be true for other languages)_.
 ```java
 ObjectMapper mapper = new JsonMapper() -> YajbeMapper()
-mapper.writeValueAsBytes(obj)
-obj = mapper.readValue(encoded, MyObject.class);
+byte[] encoded = mapper.writeValueAsBytes(obj)
+MyObject obj = mapper.readValue(encoded, MyObject.class);
 ```
 ```typescript
 JSON.stringify(): string -> YAJBE.encode(): Uint8Array
