@@ -17,7 +17,7 @@
 import struct
 import io
 
-from freq import EnumLruMapping
+from .freq import EnumLruMapping
 
 class FieldNameReader:
     def __init__(self, decoder, initial_field_names: list[str] = None) -> None:
@@ -139,7 +139,7 @@ class YajbeDecoder:
         return text
 
     def _decode_enum_config(self, head: int) -> None:
-        h1 = self._read_byte();
+        h1 = self._read_byte()
         match ((h1 >> 4) & 0b1111):
             case 0:
                 min_freq = self._read_byte()

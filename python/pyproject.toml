@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/yajbe/__init__.py"
+
+[project]
+name = "yajbe"
+dynamic = [
+  "version"
+]
+authors = [
+  { name="Matteo Bertozzi", email="mbertozzi@apache.org" },
+]
+description = "YAJBE is a compact binary data format built to be a drop-in replacement for JSON (JavaScript Object Notation)."
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/matteobertozzi/yajbe-data-format"
+"Bug Tracker" = "https://github.com/matteobertozzi/yajbe-data-format/issues"

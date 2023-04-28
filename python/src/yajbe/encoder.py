@@ -14,10 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import struct
 import io
+import struct
 
-from freq import EnumLruMapping, YajbeEncoderEnumConfig, YajbeEnumLruConfig
+from .freq import EnumLruMapping, YajbeEncoderEnumConfig
+
 
 def int_bytes_width(v: int) -> int:
     return (v.bit_length() + 7) // 8 if v != 0 else 1
@@ -243,7 +244,7 @@ class YajbeEncoder:
             self._write_uint(delta_length, nbytes)
 
     def _write_byte(self, v: int) -> None:
-        self._stream.write(v.to_bytes())
+        self._stream.write(bytes([v & 0xff]))
 
     def _write_bytes(self, value: bytes) -> None:
         self._stream.write(value)

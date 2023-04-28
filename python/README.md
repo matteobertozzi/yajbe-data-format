@@ -1,6 +1,23 @@
 # YAJBE for Python
 
-NOTE: the python implementation is still a work in progress
+YAJBE is a compact binary data format built to be a drop-in replacement for JSON (JavaScript Object Notation).
+
+
+## Motivation for a new format
+We have a lot of services exchanging or storing data using JSON, and most of them don't want to switch to a data format that requires a schema.
+
+We wanted to remove the overhead of the JSON format (especially field names), but keeping the same data model flexibility (numbers, strings, arrays, maps/objects, and a few values such as false, true, and null).
+
+See more at https://github.com/matteobertozzi/yajbe-data-format
+
+### Install the package
+You can find the package at https://pypi.org/project/yajbe. \
+Python >=3.10 is required. To install or upgrade you can use:
+```bash
+$ pip install --upgrade yajbe
+```
+
+## Usage
 
 ```python
 import yajbe
