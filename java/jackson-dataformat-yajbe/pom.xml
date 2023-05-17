@@ -6,7 +6,7 @@
 
   <groupId>io.github.matteobertozzi</groupId>
   <artifactId>jackson-dataformat-yajbe</artifactId>
-  <version>0.9.5</version>
+  <version>2.15.1</version>
 
   <name>jackson-dataformat-yajbe</name>
   <description>YAJBE is a compact binary data format built to be a drop-in replacement for JSON (JavaScript Object Notation).</description>
@@ -32,16 +32,16 @@
   </developers>
 
   <properties>
-    <jackson.version>2.14.2</jackson.version>
+    <jackson.version>2.15.1</jackson.version>
 
-    <junit.version>5.9.2</junit.version>
-    <maven.gpg.version>3.0.1</maven.gpg.version>
+    <junit.version>5.9.3</junit.version>
+    <maven.gpg.version>3.1.0</maven.gpg.version>
     <maven.jar.version>3.3.0</maven.jar.version>
     <maven.compiler.version>3.11.0</maven.compiler.version>
     <maven.source.version>3.2.1</maven.source.version>
     <maven.javadoc.version>3.5.0</maven.javadoc.version>
-    <maven.surefire.version>3.0.0-M9</maven.surefire.version>
-    <maven.failsafe.version>3.0.0-M9</maven.failsafe.version>
+    <maven.surefire.version>3.1.0</maven.surefire.version>
+    <maven.failsafe.version>3.1.0</maven.failsafe.version>
     <nexus.staging.maven.version>1.6.13</nexus.staging.maven.version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

@@ -31,15 +31,15 @@
 
   <properties>
     <yajbe.version>0.9.5-SNAPSHOT</yajbe.version>
-    <jackson.version>2.14.2</jackson.version>
-    <jackson.databind.version>2.14.2</jackson.databind.version>
+    <jackson.version>2.15.1</jackson.version>
+    <jackson.databind.version>2.15.1</jackson.databind.version>
     <jmh.version>1.36</jmh.version>
 
-    <junit.version>5.9.2</junit.version>
+    <junit.version>5.9.3</junit.version>
     <maven.jar.version>3.3.0</maven.jar.version>
     <maven.compiler.version>3.11.0</maven.compiler.version>
-    <maven.surefire.version>3.0.0-M9</maven.surefire.version>
-    <maven.failsafe.version>3.0.0-M9</maven.failsafe.version>
+    <maven.surefire.version>3.1.0</maven.surefire.version>
+    <maven.failsafe.version>3.1.0</maven.failsafe.version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
