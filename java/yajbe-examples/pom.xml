@@ -30,9 +30,9 @@
   </repositories>
 
   <properties>
-    <yajbe.version>2.15.2-SNAPSHOT</yajbe.version>
-    <jackson.version>2.15.1</jackson.version>
-    <jackson.databind.version>2.15.1</jackson.databind.version>
+    <yajbe.version>2.15.2</yajbe.version>
+    <jackson.version>2.15.2</jackson.version>
+    <jackson.databind.version>2.15.2</jackson.databind.version>
     <jmh.version>1.36</jmh.version>
 
     <junit.version>5.9.3</junit.version>
