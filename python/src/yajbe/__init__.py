@@ -18,4 +18,4 @@ from .encoder import encode_to_stream, encode_as_bytes
 from .decoder import decode_stream, decode_bytes
 from .freq import YajbeEnumLruConfig
 
-__version__ = '0.0.3'
+__version__ = '0.0.7'

@@ -16,9 +16,18 @@
 
 import io
 import struct
+import types
 
 from .freq import EnumLruMapping, YajbeEncoderEnumConfig
 
+CALLABLES_TYPES = (types.FunctionType, types.MethodType)
+
+def is_object(obj) -> bool:
+    # TODO: we must find a better way to do this!
+    return not isinstance(obj, CALLABLES_TYPES) and hasattr(obj, '__dict__')
+
+def object_as_dict(obj: object) -> dict[str, any]:
+    return {k: v for k, v in obj.__dict__.items() if k[0] != '_' and not isinstance(v, CALLABLES_TYPES)}
 
 def int_bytes_width(v: int) -> int:
     return (v.bit_length() + 7) // 8 if v != 0 else 1
@@ -116,7 +125,7 @@ class FieldNameWriter:
                 return i - 1
         return min_len
 
-
+from dataclasses import is_dataclass, asdict as dataclass_as_dict
 class YajbeEncoder:
     def __init__(self, stream: io.BufferedIOBase, initial_field_names: list[str] = None, enum_config: YajbeEncoderEnumConfig = None) -> None:
         self._stream = stream
@@ -143,8 +152,15 @@ class YajbeEncoder:
         item_type = type(item)
         encoder = self._types_map.get(item_type)
         if encoder is None:
-            raise Exception('unsupported type %s: %s' % (item_type, item))
-        encoder(item)
+            if is_dataclass(item):
+                item = dataclass_as_dict(item)
+                return self.encode_object(item)
+            elif is_object(item):
+                item = object_as_dict(item)
+                return self.encode_object(item)
+            else:
+                raise Exception('unsupported type %s: %s' % (item_type, item))
+        return encoder(item)
 
     def encode_null(self):
         self._write_byte(0)
