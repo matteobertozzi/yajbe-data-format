@@ -30,16 +30,16 @@
   </repositories>
 
   <properties>
-    <yajbe.version>2.15.2</yajbe.version>
-    <jackson.version>2.15.2</jackson.version>
-    <jackson.databind.version>2.15.2</jackson.databind.version>
-    <jmh.version>1.36</jmh.version>
+    <yajbe.version>2.15.3</yajbe.version>
+    <jackson.version>2.15.3</jackson.version>
+    <jackson.databind.version>2.15.3</jackson.databind.version>
+    <jmh.version>1.37</jmh.version>
 
-    <junit.version>5.9.3</junit.version>
+    <junit.version>5.10.0</junit.version>
     <maven.jar.version>3.3.0</maven.jar.version>
     <maven.compiler.version>3.11.0</maven.compiler.version>
-    <maven.surefire.version>3.1.0</maven.surefire.version>
-    <maven.failsafe.version>3.1.0</maven.failsafe.version>
+    <maven.surefire.version>3.1.2</maven.surefire.version>
+    <maven.failsafe.version>3.1.2</maven.failsafe.version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
