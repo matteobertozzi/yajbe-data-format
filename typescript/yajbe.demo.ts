@@ -1,5 +1,11 @@
 import * as YAJBE from './yajbe.ts';
 
+const r = YAJBE.encode({a: 0});
+console.log(YAJBE.decode(r));
+
+const r2 = YAJBE.encode(0);
+console.log(YAJBE.decode(r2));
+
 // Simple usage
 const enc: Uint8Array = YAJBE.encode({a: "hello", b: [1, 2, 3]});
 const dec = YAJBE.decode(enc); // {a: "hello", b: [1, 2, 3]}

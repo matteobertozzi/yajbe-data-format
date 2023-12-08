@@ -614,7 +614,9 @@ export class YajbeDecoder {
     const signed = (head & 0b011_00000) == 0b011_00000;
 
     const w = head & 0b11111;
-    if (w < 24) return signed ? -w : (1 + w);
+    if (w < 24) {
+      return signed ? ((w != 0) ? -w : 0) : (1 + w);
+    }
 
     const value = this.buffer.readUint(w - 23);
     return signed ? -(value + 24) : (value + 25);
