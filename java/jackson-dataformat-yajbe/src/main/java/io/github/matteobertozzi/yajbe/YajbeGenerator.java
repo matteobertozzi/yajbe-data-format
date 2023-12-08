@@ -39,12 +39,10 @@ final class YajbeGenerator extends GeneratorBase {
   private final YajbeFieldNameWriter fileNameWriter;
   private final YajbeEnumMappingConfig enumConfig;
   private final YajbeWriter stream;
-  private final IOContext ctxt;
   private final byte[] wbuffer;
 
   YajbeGenerator(final IOContext ctxt, final int features, final ObjectCodec codec, final OutputStream stream, final YajbeEnumMappingConfig enumConfig) {
-    super(features, codec);
-    this.ctxt = ctxt;
+    super(features, codec, ctxt, null);
 
     this.wbuffer = ctxt.allocWriteEncodingBuffer(9);
     this.stream = YajbeWriter.forBufferedStream(stream, wbuffer);
@@ -70,7 +68,7 @@ final class YajbeGenerator extends GeneratorBase {
 
   @Override
   protected void _releaseBuffers() {
-    ctxt.releaseWriteEncodingBuffer(wbuffer);
+    _ioContext.releaseWriteEncodingBuffer(wbuffer);
   }
 
   @Override
