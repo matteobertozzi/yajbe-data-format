@@ -146,11 +146,13 @@ abstract class YajbeReader {
   // ====================================================================================================
   public final void decodeSmallBytes(final int head) throws IOException {
     bytesValue = readNBytes(head & 0b111111);
+    strValue = null;
   }
 
   public final void decodeBytes(final int head) throws IOException {
     final int length = 59 + readFixedInt((head & 0b111111) - 59);
     bytesValue = readNBytes(length);
+    strValue = null;
   }
 
   // ====================================================================================================

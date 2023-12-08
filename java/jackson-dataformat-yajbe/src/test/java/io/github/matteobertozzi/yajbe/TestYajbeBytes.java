@@ -21,7 +21,10 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.UUID;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 public class TestYajbeBytes extends BaseYajbeTest {
@@ -76,6 +79,27 @@ public class TestYajbeBytes extends BaseYajbeTest {
       final byte[] enc = YAJBE_MAPPER.writeValueAsBytes(input);
       assertArrayEquals(input, YAJBE_MAPPER.readValue(enc, byte[].class));
     }
+  }
+
+  @Test
+  public void testUuidBytes() throws IOException {
+    record TestRawItem(String a, byte[] b) {}
+    record TestItem(String a, UUID b) {}
+
+    final String a = "hello";
+    final UUID b = UUID.randomUUID();
+    final byte[] bb = new byte[16];
+    ByteBuffer.wrap(bb).putLong(b.getMostSignificantBits()).putLong(b.getLeastSignificantBits());
+
+    final byte[] enc = YAJBE_MAPPER.writeValueAsBytes(new TestRawItem(a, bb));
+
+    final TestRawItem rawItem = YAJBE_MAPPER.readValue(enc, TestRawItem.class);
+    Assertions.assertEquals(a, rawItem.a());
+    Assertions.assertArrayEquals(bb, rawItem.b());
+
+    final TestItem item = YAJBE_MAPPER.readValue(enc, TestItem.class);
+    Assertions.assertEquals(a, item.a());
+    Assertions.assertEquals(b, item.b());
   }
 
   public void assertEncodeDecode(final byte[] input, final String expectedEnc) throws IOException {
