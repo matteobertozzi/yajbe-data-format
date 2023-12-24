@@ -37,8 +37,9 @@ abstract class YajbeWriter {
   protected abstract void write(byte[] buf, int off, int len) throws IOException;
 
   protected abstract byte[] rawBuffer();
+  protected abstract int rawBufferOffset();
   protected abstract int rawBufferOffset(int size) throws IOException;
-  protected abstract void rawBufferWriteBatch(int itemCount, int maxItemSize, RawBufferWriter writer) throws IOException;
+  protected abstract void rawBufferFlush(int length, final int availSizeRequired) throws IOException;
 
   public static YajbeWriter forBufferedStream(final OutputStream stream, final byte[] buffer) {
     return new YajbeWriterStream(stream, buffer);
@@ -279,12 +280,42 @@ abstract class YajbeWriter {
 
   public final void writeArray(final int[] array, final int offset, final int length) throws IOException {
     writeLength(0b0010_0000, 10, length);
-    rawBufferWriteBatch(length, 5, (buf, off, index) -> writeRawInt(buf, off, array[offset + index]));
+
+    final byte[] buf = rawBuffer();
+    int bufOff = rawBufferOffset();
+    int itemIndex = 0;
+
+    while (itemIndex < length) {
+      int bufAvail = buf.length - bufOff;
+      while (bufAvail >= 5 && itemIndex < length) {
+        final int n = writeRawInt(buf, bufOff, array[offset + itemIndex++]);
+        bufOff += n;
+        bufAvail -= n;
+      }
+
+      rawBufferFlush(bufOff, 5);
+      bufOff = 0;
+    }
   }
 
   public final void writeArray(final long[] array, final int offset, final int length) throws IOException {
     writeLength(0b0010_0000, 10, length);
-    rawBufferWriteBatch(length, 9, (buf, off, index) -> writeRawInt(buf, off, array[offset + index]));
+
+    final byte[] buf = rawBuffer();
+    int bufOff = rawBufferOffset();
+    int itemIndex = 0;
+
+    while (itemIndex < length) {
+      int bufAvail = buf.length - bufOff;
+      while (bufAvail >= 9 && itemIndex < length) {
+        final int n = writeRawInt(buf, bufOff, array[offset + itemIndex++]);
+        bufOff += n;
+        bufAvail -= n;
+      }
+
+      rawBufferFlush(bufOff, 9);
+      bufOff = 0;
+    }
   }
 
   // ====================================================================================================

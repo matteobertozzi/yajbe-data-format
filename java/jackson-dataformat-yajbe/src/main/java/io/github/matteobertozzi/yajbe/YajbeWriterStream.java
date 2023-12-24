@@ -62,12 +62,17 @@ final class YajbeWriterStream extends YajbeWriter {
   }
 
   @Override
-  protected byte[] rawBuffer() {
+  protected final byte[] rawBuffer() {
     return wbuf;
   }
 
   @Override
-  protected int rawBufferOffset(final int size) throws IOException {
+  protected final int rawBufferOffset() {
+    return wbufOff;
+  }
+
+  @Override
+  protected final int rawBufferOffset(final int size) throws IOException {
     if ((wbufOff + size) >= wbuf.length) {
       stream.write(wbuf, 0, wbufOff);
       wbufOff = size;
@@ -80,21 +85,12 @@ final class YajbeWriterStream extends YajbeWriter {
   }
 
   @Override
-  protected void rawBufferWriteBatch(final int itemCount, final int maxItemSize, final RawBufferWriter writer) throws IOException {
-    final int flushThreshold = Math.max(maxItemSize, (wbuf.length / 4));
-    final byte[] buf = rawBuffer();
-    int itemIndex = 0;
-    while (itemIndex < itemCount) {
-      int bufAvail = wbuf.length - wbufOff;
-      if (bufAvail <= flushThreshold) {
-        rawBufferFlush();
-        bufAvail = wbuf.length - wbufOff;
-      }
-
-      final int batch = Math.min(itemCount - itemIndex, bufAvail / maxItemSize);
-      for (int i = 0; i < batch; ++i) {
-        wbufOff += writer.writeItem(buf, wbufOff, itemIndex++);
-      }
+  protected final void rawBufferFlush(final int length, final int availSizeRequired) throws IOException {
+    if ((wbuf.length - length) < availSizeRequired) {
+      stream.write(wbuf, 0, length);
+      wbufOff = 0;
+    } else {
+      wbufOff = length;
     }
   }
 
