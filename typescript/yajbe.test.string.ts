@@ -27,16 +27,16 @@ function assertEncodeDecode(input: unknown, expectedHex: string) {
 
 const TEXT_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 function randText(length: number): string {
-    const sw: string[] = [];
-    for (let i = 0; i < length; ++i) {
-      const wordLength = 4 + (Math.floor(Math.random() * 8));
-      for (let w = 0; w < wordLength; ++w) {
-        sw.push(TEXT_CHARS.charAt(Math.floor(Math.random() * TEXT_CHARS.length)));
-      }
-      sw.push(' ');
+  const sw: string[] = [];
+  for (let i = 0; i < length; ++i) {
+    const wordLength = 4 + (Math.floor(Math.random() * 8));
+    for (let w = 0; w < wordLength; ++w) {
+      sw.push(TEXT_CHARS.charAt(Math.floor(Math.random() * TEXT_CHARS.length)));
     }
-    return sw.join('');
+    sw.push(' ');
   }
+  return sw.join('');
+}
 
 Deno.test('testSimple', () => {
   assertEncodeDecode('', 'c0');

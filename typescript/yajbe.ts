@@ -189,7 +189,7 @@ function intBytesWidth(value: number) {
   return 8;
 }
 
-const POW2_8SHIFTS = [1, 256, 65536, 16777216, 4294967296, 1099511627776, 281474976710656, 72057594037927940];
+const POW2_8SHIFTS = [1, 256, 65536, 16777216, 4294967296, 1099511627776, 281474976710656, 72057594037927936];
 
 function decodeInt(buffer: Uint8Array, offset: number, width: number, bigEndian?: boolean): number {
   let value = 0;
@@ -885,7 +885,7 @@ export class FieldNameReader {
     }
   }
 
-  private readLength(head: number) {
+  private readLength(head: number): number {
     const length = (head & 0b000_11111);
     if (length < 30) return length;
     if (length == 30) return this.reader.readUint8() + 29;
