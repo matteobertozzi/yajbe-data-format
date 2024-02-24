@@ -53,6 +53,7 @@ To know more details about the encoding visit the [specs](specs) folder.
  * **Java** implementation based on [Jackson](https://github.com/FasterXML/jackson) can be found in the [java/jackson-dataformat-yajbe](java/jackson-dataformat-yajbe) folder.
  * **Typescript** implementation can be found in the [typescript](typescript) folder.
  * **Python** implementation can be found in the [python](python) folder.
+ * **Dart** implementation can be found in the [dart](dart) folder.
 
 ## Test DataSets
 For test purposes we use json files downloaded or generated from:
