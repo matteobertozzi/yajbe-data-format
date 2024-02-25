@@ -37,6 +37,9 @@ void main() {
       assertEncodeDecode(0xffffffffff, "5ce6ffffffff");
       assertEncodeDecode(0xffffffffffff, "5de6ffffffffff");
       assertEncodeDecode(0x1fffffffffffff, "5ee6ffffffffff1f");
+      assertEncodeDecode((pow(2, 56) - 1).floor(), "5ee6ffffffffffff");
+      assertEncodeDecode((pow(2, 60) - 1).floor(), "5fe6ffffffffffff0f");
+      assertEncodeDecode((pow(2, 63) - 1).floor(), "5fe6ffffffffffff7f");
       assertDecode("5ee6ffffffffffff", 0xffffffffffffff);
       assertDecode("5fe6ffffffffffff0f", 0xfffffffffffffff);
       assertDecode("5fe6ffffffffffff7f", 0x7fffffffffffffff);

@@ -16,6 +16,7 @@
  */
 
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'buffer_writer.dart';
@@ -154,14 +155,7 @@ class YajbeEncoder {
 }
 
 int _intBytesWidth(int value) {
-  if (value <= 0xff) return 1;
-  if (value <= 0xffff) return 2;
-  if (value <= 0xffffff) return 3;
-  if (value <= 0xffffffff) return 4;
-  if (value <= 0xffffffffff) return 5;
-  if (value <= 0xffffffffffff) return 6;
-  if (value <= 0xffffffffffffff) return 7;
-  return 8;
+  return max(1, (value.bitLength + 7) >> 3);
 }
 
 Uint8List yajbeEncode(Object? object, {Object? Function(Object? nonEncodable)? toEncodable}) {

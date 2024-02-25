@@ -17,6 +17,8 @@
 
 import 'dart:typed_data';
 
+const pow2_8Shifts = [1, 256, 65536, 16777216, 4294967296, 1099511627776, 281474976710656, 72057594037927936];
+
 class BufferReader {
   final ByteData data;
   int _position = 0;
@@ -50,7 +52,8 @@ class BufferReader {
   int readUint(int width) {
     int result = 0;
     for (int i = 0; i < width; ++i) {
-      result |= data.getUint8(_position++) << (i << 3);
+      //result |= data.getUint8(_position++) << (i << 3); // javascript/dart2js does not work well with shifts
+      result += data.getUint8(_position++) * pow2_8Shifts[i];
     }
     return result;
   }

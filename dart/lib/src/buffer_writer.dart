@@ -17,6 +17,8 @@
 
 import 'dart:typed_data';
 
+const pow2_8Shifts = [1, 256, 65536, 16777216, 4294967296, 1099511627776, 281474976710656, 72057594037927936];
+
 class BufferWriter {
   final BytesBuilder _buf;
 
@@ -36,7 +38,8 @@ class BufferWriter {
 
   void addUint(int value, int width) {
     for (int i = 0; i < width; ++i) {
-      _buf.addByte((value >> (i << 3)) & 0xff);
+      //_buf.addByte((value >> (i << 3)) & 0xff); // javascript/dart2js does not work well with shifts
+      _buf.addByte(value ~/ pow2_8Shifts[i]);
     }
   }
 }
