@@ -11,7 +11,7 @@ $ npm install yajbe-dataformat
 $ cat package.json
 ...
 "dependencies": {
-  "yajbe-dataformat": "^0.0.8",
+  "yajbe-dataformat": "^1.0.0",
   ...
 },
 ```
