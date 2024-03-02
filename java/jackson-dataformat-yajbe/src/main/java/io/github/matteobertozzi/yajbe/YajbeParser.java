@@ -253,7 +253,7 @@ final class YajbeParser extends ParserMinimalBase {
     JsonToken.VALUE_NUMBER_FLOAT,     // float vle
     JsonToken.VALUE_NUMBER_FLOAT,     // float32
     JsonToken.VALUE_NUMBER_FLOAT,     // float64
-    JsonToken.VALUE_NUMBER_FLOAT,     // big decimal
+    JsonToken.VALUE_NUMBER_INT,       // big decimal - 2.17 switch to int to workaround getNumberTypeFP()
     JsonToken.START_ARRAY,            // fixed array
     JsonToken.START_ARRAY,            // eof array
     JsonToken.START_OBJECT,           // fixed object
@@ -395,6 +395,16 @@ final class YajbeParser extends ParserMinimalBase {
   @Override
   public NumberType getNumberType() {
     return stream.numberType();
+  }
+
+  @Override // 2.17
+  public NumberTypeFP getNumberTypeFP() {
+    return switch (stream.numberType()) {
+      case FLOAT -> NumberTypeFP.FLOAT32;
+      case DOUBLE -> NumberTypeFP.DOUBLE64;
+      case BIG_DECIMAL -> NumberTypeFP.BIG_DECIMAL;
+      default -> NumberTypeFP.UNKNOWN;
+    };
   }
 
   @Override

@@ -25,10 +25,32 @@ import java.math.BigInteger;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 public class TestYajbeNumbers extends BaseYajbeTest {
   record ObjectWithNumbers (int intValue, long longValue, float floatValue, double doubleValue, BigInteger bigInt, BigDecimal bigDecimal) {}
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testNumberTypeFP() throws IOException {
+    final byte[] enc = YAJBE_MAPPER.writeValueAsBytes(Map.of(
+      "float", 10.7f,
+      "double", 128.5,
+      "BigDecimal", BigDecimal.valueOf(100, 100),
+      "int", 10,
+      "long", Long.MAX_VALUE,
+      "BigInteger", BigInteger.valueOf(123)
+    ));
+    final Map<String, Object> x = YAJBE_MAPPER.readValue(enc, Map.class);
+    Assertions.assertEquals(Float.class, x.get("float").getClass());
+    Assertions.assertEquals(Double.class, x.get("double").getClass());
+    Assertions.assertEquals(BigDecimal.class, x.get("BigDecimal").getClass());
+
+    Assertions.assertEquals(Integer.class, x.get("int").getClass());
+    Assertions.assertEquals(Long.class, x.get("long").getClass());
+    Assertions.assertEquals(BigInteger.class, x.get("BigInteger").getClass());
+  }
 
   @Test
   public void testSimple() throws IOException {
