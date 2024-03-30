@@ -25,7 +25,9 @@ class YajbeDecoder {
   final FieldNameReader _fieldNameReader;
   final BufferReader _buffer;
 
-  YajbeDecoder(BufferReader buffer) : _fieldNameReader = FieldNameReader(buffer), _buffer = buffer;
+  YajbeDecoder(BufferReader buffer)
+      : _fieldNameReader = FieldNameReader(buffer),
+        _buffer = buffer;
 
   dynamic decodeItem() {
     while (true) {
@@ -47,11 +49,15 @@ class YajbeDecoder {
       } else {
         switch (head) {
           // null
-          case 0: return null;
+          case 0:
+            return null;
           // boolean
-          case 2: return false;
-          case 3: return true;
-          default: throw UnsupportedError('unsupported item head: $head');
+          case 2:
+            return false;
+          case 3:
+            return true;
+          default:
+            throw UnsupportedError('unsupported item head: $head');
         }
       }
     }
@@ -71,10 +77,14 @@ class YajbeDecoder {
 
   double decodeFloat(int head) {
     switch (head & 3) {
-      case 0: return _buffer.readFloat16();
-      case 1: return _buffer.readFloat32();
-      case 2: return _buffer.readFloat64();
-      case 3: throw UnsupportedError('decode bigdecimal');
+      case 0:
+        return _buffer.readFloat16();
+      case 1:
+        return _buffer.readFloat32();
+      case 2:
+        return _buffer.readFloat64();
+      case 3:
+        throw UnsupportedError('decode bigdecimal');
     }
     return 0;
   }
@@ -128,10 +138,10 @@ class YajbeDecoder {
     return retArray;
   }
 
-  Map decodeObject(int head) {
+  Map<String, dynamic> decodeObject(int head) {
     int w = head & 0xf;
     if (w == 0xf) {
-      Map retObject = {};
+      Map<String, dynamic> retObject = {};
       while (readHasMore()) {
         String key = _fieldNameReader.decodeString();
         retObject[key] = decodeItem();
@@ -140,7 +150,7 @@ class YajbeDecoder {
     }
 
     int length = readItemCount(w);
-    Map retObject = {};
+    Map<String, dynamic> retObject = {};
     for (int i = 0; i < length; ++i) {
       String key = _fieldNameReader.decodeString();
       retObject[key] = decodeItem();
@@ -149,15 +159,25 @@ class YajbeDecoder {
   }
 }
 
+/// Parses the YAJBE encoded data and returns the resulting "Json" object.
 dynamic yajbeDecode(BufferReader buffer) {
   YajbeDecoder decoder = YajbeDecoder(buffer);
   return decoder.decodeItem();
 }
 
+/// Parses the YAJBE Uint8List encoded data and returns the resulting "Json" object.
+///
+/// ```dart
+/// const data = {'a': 10, 'b': ['hello', 'world']};
+/// final Uint8List enc = yajbeEncode(data);
+/// final obj = yajbeDecodeUint8Array(enc);
+/// print(obj); // {'a': 10, 'b': ['hello', 'world']}
+/// ```
 dynamic yajbeDecodeUint8Array(Uint8List data) {
   return yajbeDecode(BufferReader.fromUint8Array(data));
 }
 
+/// Parses the YAJBE encoded data and returns the resulting "Json" object.
 dynamic yajbeDecodeByteData(ByteData data) {
   return yajbeDecode(BufferReader(data));
 }

@@ -19,7 +19,6 @@ import 'dart:typed_data';
 import 'package:yajbe/yajbe.dart';
 
 void main() {
-
   Uint8List encA = yajbeEncode(0);
   print(yajbeDecodeUint8Array(encA));
 
@@ -29,8 +28,11 @@ void main() {
   Uint8List encC = yajbeEncode([1, 2, 3]);
   print(yajbeDecodeUint8Array(encC));
 
-  Uint8List encD = yajbeEncode({'a': "hello", 'b': [1, 2, 3]});
-  Map decD = yajbeDecodeUint8Array(encD); // {a: "hello", b: [1, 2, 3]}
+  Uint8List encD = yajbeEncode({
+    'a': "hello",
+    'b': [1, 2, 3]
+  });
+  Map<String, dynamic> decD = yajbeDecodeUint8Array(encD); // {a: "hello", b: [1, 2, 3]}
   print(encD);
   print(decD);
 }

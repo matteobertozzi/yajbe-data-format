@@ -28,9 +28,8 @@ class YajbeEncoder {
   final Object? Function(Object? nonEncodable)? _toEncodable;
 
   YajbeEncoder(Object? Function(Object? nonEncodable)? toEncodable)
-    : _buf = BufferWriter(),
-      _toEncodable = toEncodable
-  {
+      : _buf = BufferWriter(),
+        _toEncodable = toEncodable {
     _fieldNameWriter = FieldNameWriter(_buf);
   }
 
@@ -66,9 +65,17 @@ class YajbeEncoder {
     }
   }
 
-  void encodeNull() { _buf.addByte(0); }
-  void encodeTrue() { _buf.addByte(3); }
-  void encodeFalse() { _buf.addByte(2); }
+  void encodeNull() {
+    _buf.addByte(0);
+  }
+
+  void encodeTrue() {
+    _buf.addByte(3);
+  }
+
+  void encodeFalse() {
+    _buf.addByte(2);
+  }
 
   void encodeInt(int value) {
     if (value > 0) {
@@ -158,6 +165,16 @@ int _intBytesWidth(int value) {
   return max(1, (value.bitLength + 7) >> 3);
 }
 
+/// Converts [object] to a YAJBE binary format.
+///
+/// If value contains objects that are not directly encodable to YAJBE
+/// (a value that is not a number, boolean, string, null, list or a map with string keys),
+/// the [toEncodable] function is used to convert it to an object that must be directly encodable.
+///
+/// ```dart
+/// const data = {'a': 10, 'b': ['hello', 'world']};
+/// Uint8List enc = yajbeEncode(data);
+/// ```
 Uint8List yajbeEncode(Object? object, {Object? Function(Object? nonEncodable)? toEncodable}) {
   YajbeEncoder encoder = YajbeEncoder(toEncodable);
   encoder.encodeItem(object);

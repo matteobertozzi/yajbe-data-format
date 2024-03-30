@@ -26,18 +26,23 @@ class FieldNameReader {
   Uint8List _lastKey;
 
   FieldNameReader(BufferReader buf)
-    : _buf = buf,
-      _lastKey = Uint8List(0),
-      _indexedNames = [];
+      : _buf = buf,
+        _lastKey = Uint8List(0),
+        _indexedNames = [];
 
   String decodeString() {
     int head = _buf.readUint8();
     switch ((head >> 5) & 7) {
-      case 4: return _readFullFieldName(head);
-      case 5: return _readIndexedFieldName(head);
-      case 6: return _readPrefix(head);
-      case 7: return _readPrefixSuffix(head);
-      default: throw UnsupportedError('unexpected head: $head');
+      case 4:
+        return _readFullFieldName(head);
+      case 5:
+        return _readIndexedFieldName(head);
+      case 6:
+        return _readPrefix(head);
+      case 7:
+        return _readPrefixSuffix(head);
+      default:
+        throw UnsupportedError('unexpected head: $head');
     }
   }
 

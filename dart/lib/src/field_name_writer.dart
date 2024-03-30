@@ -27,9 +27,9 @@ class FieldNameWriter {
   Uint8List _lastKey;
 
   FieldNameWriter(BufferWriter buf)
-    : _buf = buf,
-      _indexedMap = {},
-      _lastKey = Uint8List(0);
+      : _buf = buf,
+        _indexedMap = {},
+        _lastKey = Uint8List(0);
 
   void encodeString(String key) {
     Uint8List utf8data = utf8.encode(key);
