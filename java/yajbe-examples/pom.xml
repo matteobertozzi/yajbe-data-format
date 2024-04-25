@@ -36,7 +36,7 @@
     <jmh.version>1.37</jmh.version>
 
     <junit.version>5.10.2</junit.version>
-    <maven.jar.version>3.4.0</maven.jar.version>
+    <maven.jar.version>3.4.1</maven.jar.version>
     <maven.compiler.version>3.13.0</maven.compiler.version>
     <maven.surefire.version>3.2.5</maven.surefire.version>
     <maven.failsafe.version>3.2.5</maven.failsafe.version>
