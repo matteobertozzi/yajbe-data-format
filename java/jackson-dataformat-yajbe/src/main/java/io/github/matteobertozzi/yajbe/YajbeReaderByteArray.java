@@ -17,6 +17,7 @@
 
 package io.github.matteobertozzi.yajbe;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 final class YajbeReaderByteArray extends YajbeReader {
@@ -41,7 +42,11 @@ final class YajbeReaderByteArray extends YajbeReader {
   }
 
   @Override
-  protected ByteArraySlice readNBytes(final int n) {
+  protected ByteArraySlice readNBytes(final int n) throws IOException {
+    if (data.length < (offset + n)) {
+      throw new IOException("invalid length:" + n + ", avail:" + (data.length - offset));
+    }
+
     final ByteArraySlice slice = new ByteArraySlice(data, offset, n);
     offset += n;
     return slice;
