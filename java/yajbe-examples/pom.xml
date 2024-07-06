@@ -30,12 +30,12 @@
   </repositories>
 
   <properties>
-    <yajbe.version>2.17.1</yajbe.version>
-    <jackson.version>2.17.1</jackson.version>
+    <yajbe.version>2.17.2</yajbe.version>
+    <jackson.version>2.17.2</jackson.version>
     <jackson.databind.version>2.17.1</jackson.databind.version>
     <jmh.version>1.37</jmh.version>
 
-    <junit.version>5.10.2</junit.version>
+    <junit.version>5.10.3</junit.version>
     <maven.jar.version>3.4.2</maven.jar.version>
     <maven.compiler.version>3.13.0</maven.compiler.version>
     <maven.surefire.version>3.3.0</maven.surefire.version>
