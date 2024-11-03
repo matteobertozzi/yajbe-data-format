@@ -9,7 +9,7 @@ so you'll just probably need to include the package as dependency in your pom.xm
   <dependency>
     <groupId>io.github.matteobertozzi</groupId>
     <artifactId>jackson-dataformat-yajbe</artifactId>
-    <version>2.18.0</version>
+    <version>2.18.1</version>
   </dependency>
 </dependencies>
 ```
