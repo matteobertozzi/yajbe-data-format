@@ -47,7 +47,7 @@ export function decode<T>(data: Uint8Array, options?: { fieldNames?: string[] })
 }
 
 // ==============================================================================================================
-class DataEncoder {
+abstract class DataEncoder {
   encodeItem(value: unknown): void {
     if (value === false) {
       this.encodeFalse();
@@ -109,32 +109,32 @@ class DataEncoder {
   }
 
   // null
-  protected encodeNull(): void { throw new Error("Not implemented"); }
-  protected encodeUndefined(): void { throw new Error("Not implemented"); }
+  protected abstract encodeNull(): void;
+  protected abstract encodeUndefined(): void;
 
   // boolean
-  protected encodeTrue(): void { throw new Error("Not implemented"); }
-  protected encodeFalse(): void { throw new Error("Not implemented"); }
+  protected abstract encodeTrue(): void;
+  protected abstract encodeFalse(): void;
 
   // float
-  protected encodeFloat(_: number): void { throw new Error("Not implemented"); }
+  protected abstract encodeFloat(_: number): void;
 
   // integer
-  protected encodeInteger(value: number): void { throw new Error("Not implemented"); }
-  protected encodeBigInt(_: BigInt): void { throw new Error("Not implemented"); }
+  protected abstract encodeInteger(value: number): void;
+  protected abstract encodeBigInt(_: BigInt): void;
 
-  protected encodeDate(_: Date): void { throw new Error("Not implemented"); }
+  protected abstract encodeDate(_: Date): void;
 
   // string/bytes
-  protected encodeString(_: string): void { throw new Error("Not implemented"); }
-  protected encodeUint8Array(_: Uint8Array): void { throw new Error("Not implemented"); }
+  protected abstract encodeString(_: string): void;
+  protected abstract encodeUint8Array(_: Uint8Array): void;
 
   // array/set
-  protected encodeArray(_: ArrayLike<unknown>): void { throw new Error("Not implemented"); }
+  protected abstract encodeArray(_: ArrayLike<unknown>): void;
   protected encodeSet(v: Set<unknown>): void { this.encodeArray(Array.from(v)); }
 
   // object/map
-  protected encodeObject(_: {[key: string]: unknown}): void { throw new Error("Not implemented"); }
+  protected abstract encodeObject(_: {[key: string]: unknown}): void;
   protected encodeMap(v: Map<unknown, unknown>): void { this.encodeObject(Object.fromEntries(v)); }
 }
 
@@ -241,10 +241,10 @@ function encodeFloat(buffer: Uint8Array, offset: number, value: number, width: n
 function decodeFloat(buffer: Uint8Array, offset: number, width: number, bigEndian?: boolean): number {
   switch (width) {
     case 4: { // float32
-      return new DataView(buffer.buffer).getFloat32(0, !bigEndian);
+      return new DataView(buffer.buffer).getFloat32(offset, !bigEndian);
     }
     case 8: { // float64
-      return new DataView(buffer.buffer).getFloat64(0, !bigEndian);
+      return new DataView(buffer.buffer).getFloat64(offset, !bigEndian);
     }
     case 2: { // float16/vle-float
       throw new Error("Not implemented decode float16/vle-float");
@@ -254,12 +254,12 @@ function decodeFloat(buffer: Uint8Array, offset: number, width: number, bigEndia
 }
 
 // ==============================================================================================================
-class AbstractBytesReader implements BytesReader {
-  reset(): void { throw new Error("Not implemented"); }
-  hasMore(): boolean { throw new Error("Not implemented"); }
-  peekUint8(): number { throw new Error("Not implemented"); }
-  readUint8(): number { throw new Error("Not implemented"); }
-  readUint8Array(_: number): Uint8Array { throw new Error("not implemented"); }
+abstract class AbstractBytesReader implements BytesReader {
+  abstract reset(): void;
+  abstract hasMore(): boolean;
+  abstract peekUint8(): number;
+  abstract readUint8(): number;
+  abstract readUint8Array(_: number): Uint8Array;
 
   constructor() {
     // no-op
@@ -328,10 +328,10 @@ export class InMemoryBytesReader extends AbstractBytesReader {
 }
 
 // ==============================================================================================================
-class AbstractBytesWriter implements BytesWriter {
-  flush(): void { throw new Error("Not implemented"); }
-  writeUint8(_: number): void { throw new Error("Not implemented"); }
-  writeUint8Array(_: Uint8Array | ArrayLike<number> | number[]): void { throw new Error("not implemented"); }
+abstract class AbstractBytesWriter implements BytesWriter {
+  abstract flush(): void;
+  abstract writeUint8(_: number): void;
+  abstract writeUint8Array(_: Uint8Array | ArrayLike<number> | number[]): void;
 
   constructor() {
     // no-op
@@ -477,6 +477,14 @@ export class YajbeEncoder extends DataEncoder {
       this.writer.writeUint8(0b011_00000 | (23 + bytes));
       this.writer.writeUint(value, bytes);
     }
+  }
+
+  protected encodeBigInt(_: BigInt): void {
+    throw new Error("Not implemented");
+  }
+
+  protected encodeDate(_: Date): void {
+    throw new Error("Not implemented");
   }
 
   protected encodeObject(dict: {[key: string]: unknown}): void {

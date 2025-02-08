@@ -1,15 +1,20 @@
 {
   "name": "yajbe-dataformat",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "YAJBE is a compact binary data format built to be a drop-in replacement for JSON (JavaScript Object Notation).",
   "main": "dist/yajbe.js",
   "types": "dist/yajbe.d.ts",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "files": ["dist"],
+
+  "author": "Matteo Bertozzi <mbertozzi@apache.org>",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/matteobertozzi/yajbe-data-format#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/matteobertozzi/yajbe-data-format.git"
+  },
+  "bugs": {
+    "url": "https://github.com/matteobertozzi/yajbe-data-format/issues"
   },
   "keywords": [
     "yajbe",
@@ -17,10 +22,12 @@
     "binary",
     "dataformat"
   ],
-  "author": "Matteo Bertozzi <mbertozzi@apache.org>",
-  "license": "Apache-2.0",
-  "bugs": {
-    "url": "https://github.com/matteobertozzi/yajbe-data-format/issues"
+
+  "devDependencies": {
+    "bun-plugin-dts": "latest",
+    "@types/bun": "latest"
   },
-  "homepage": "https://github.com/matteobertozzi/yajbe-data-format#readme"
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
 }

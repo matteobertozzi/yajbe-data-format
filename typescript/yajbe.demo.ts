@@ -21,7 +21,7 @@ console.log(dec2);
 
 
 // options: identify common strings and avoid writing them every time
-const opts3 = {enumConfig: { type: 'LRU', specs: { lruSize: 128, minFreq: 1 }  }};
+const opts3: YAJBE.YajbeEncoderOptions = {enumConfig: { type: 'LRU', specs: { lruSize: 128, minFreq: 1 }  }};
 const enc3: Uint8Array = YAJBE.encode([{a: "foooo"}, {a: "foooo"}, {a: "foooo"}, {a: "foooo"}], opts3);
 const dec3 = YAJBE.decode(enc3); // [{a: "foooo"}, {a: "foooo"}, {a: "foooo"}, {a: "foooo"}]
 console.log(enc3);
