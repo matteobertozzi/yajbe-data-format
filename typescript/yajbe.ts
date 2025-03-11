@@ -20,9 +20,13 @@ export interface YajbeEnumLruConfig {
   lruSize: number;
 }
 
+export interface YajbeEnumAnyConfig {
+  maxLength: number;
+}
+
 export interface YajbeEncoderEnumConfig {
-  type: 'LRU';
-  specs: YajbeEnumLruConfig;
+  type: 'ANY' | 'LRU';
+  specs?: YajbeEnumLruConfig | YajbeEnumAnyConfig;
 }
 
 export interface YajbeEncoderOptions {
@@ -427,7 +431,7 @@ export class YajbeEncoder extends DataEncoder {
 
   private readonly sortKeys: boolean;
   private readonly enumConfig?: YajbeEncoderEnumConfig;
-  private enumMapping?: EnumLruMapping;
+  private enumMapping?: EnumMapping;
 
   constructor(writer: BytesWriter, options?: YajbeEncoderOptions) {
     super();
@@ -444,8 +448,9 @@ export class YajbeEncoder extends DataEncoder {
 
   protected encodeFloat(value: number): void {
     // assume float64
-    this.writer.writeUint8(0b00000_110);
-    this.writer.writeFloat64(value);
+    const writer = this.writer;
+    writer.writeUint8(0b00000_110);
+    writer.writeFloat64(value);
   }
 
   protected encodeInteger(value: number): void {
@@ -457,25 +462,27 @@ export class YajbeEncoder extends DataEncoder {
   }
 
   protected encodePositiveInt(value: number): void {
+    const writer = this.writer;
     if (value <= 24) {
-      this.writer.writeUint8(0b010_00000 | (value - 1));
+      writer.writeUint8(0b010_00000 | (value - 1));
     } else {
       value -= 25;
       const bytes = intBytesWidth(value);
-      this.writer.writeUint8(0b010_00000 | (23 + bytes));
-      this.writer.writeUint(value, bytes);
+      writer.writeUint8(0b010_00000 | (23 + bytes));
+      writer.writeUint(value, bytes);
     }
   }
 
   protected encodeNegativeInt(value: number): void {
+    const writer = this.writer;
     value = -value;
     if (value <= 23) {
-      this.writer.writeUint8(0b011_00000 | value);
+      writer.writeUint8(0b011_00000 | value);
     } else {
       value -= 24;
       const bytes = intBytesWidth(value);
-      this.writer.writeUint8(0b011_00000 | (23 + bytes));
-      this.writer.writeUint(value, bytes);
+      writer.writeUint8(0b011_00000 | (23 + bytes));
+      writer.writeUint(value, bytes);
     }
   }
 
@@ -483,8 +490,8 @@ export class YajbeEncoder extends DataEncoder {
     throw new Error("Not implemented");
   }
 
-  protected encodeDate(_: Date): void {
-    throw new Error("Not implemented");
+  protected encodeDate(date: Date): void {
+    this.encodeString(date.toISOString());
   }
 
   protected encodeObject(dict: {[key: string]: unknown}): void {
@@ -527,12 +534,16 @@ export class YajbeEncoder extends DataEncoder {
     const index = this.enumMapping!.add(text);
     if (index < 0) return false;
 
+    const writer = this.writer;
     if (index <= 0xff) {
-      this.writer.writeUint8(0b00001001);
-      this.writer.writeUint8(index);
+      writer.writeUint8(0b00001001);
+      writer.writeUint8(index);
     } else if (index <= 0xffff) {
-      this.writer.writeUint8(0b00001010);
-      this.writer.writeUint(index, 2);
+      writer.writeUint8(0b00001010);
+      writer.writeUint(index, 2);
+    } else if (index <= 0xffffff) {
+      writer.writeUint8(0b00001011);
+      writer.writeUint(index, 3);
     } else {
       throw new Error("enum index too large " + index);
     }
@@ -542,25 +553,44 @@ export class YajbeEncoder extends DataEncoder {
   private newEnumMapping(): void {
     const config = this.enumConfig!;
     switch (config.type) {
-      case 'LRU':
-        const specs: YajbeEnumLruConfig = config.specs;
+      case 'LRU': {
+        const specs: YajbeEnumLruConfig = config.specs as YajbeEnumLruConfig;
         this.enumMapping = new EnumLruMapping(specs.lruSize, specs.minFreq);
 
         this.writer.writeUint8(0b00001000);
         this.writer.writeUint8(26 - Math.clz32(specs.lruSize));
         this.writer.writeUint8(specs.minFreq - 1);
         return;
+      }
+      case 'ANY': {
+        const specs: YajbeEnumAnyConfig | undefined = config.specs as YajbeEnumAnyConfig;
+        if (specs && specs.maxLength > 0) {
+          const maxLengthBits = 26 - Math.clz32(specs.maxLength);
+          const maxLength = 1 << (5 + maxLengthBits);
+          this.enumMapping = new EnumAnyMappingWriter(maxLength);
+          this.writer.writeUint8(0b00001000);
+          this.writer.writeUint8(0b00010000 | maxLengthBits);
+        } else {
+          this.enumMapping = new EnumAnyMappingWriter();
+          this.writer.writeUint8(0b00001000);
+          this.writer.writeUint8(0b00010000);
+        }
+        return;
+      }
+      default:
+        throw new Error('Unhandled LRU type ' + config.type);
     }
   }
 
   private writeLength(head: number, inlineMax: number, length: number): void {
+    const writer = this.writer;
     if (length <= inlineMax) {
-      this.writer.writeUint8(head | length);
+      writer.writeUint8(head | length);
     } else {
       const deltaLength = length - inlineMax;
       const bytes = intBytesWidth(deltaLength);
-      this.writer.writeUint8(head | (inlineMax + bytes));
-      this.writer.writeUint(deltaLength, bytes);
+      writer.writeUint8(head | (inlineMax + bytes));
+      writer.writeUint(deltaLength, bytes);
     }
   }
 
@@ -584,17 +614,17 @@ export class YajbeDecoder {
   decodeItem(): unknown {
     while (true) {
       const head = this.buffer.readUint8();
-      if ((head & 0b11_000000) == 0b11_000000) {
+      if ((head & 0b11_000000) === 0b11_000000) {
         return this.decodeString(head);
-      } else if ((head & 0b10_000000) == 0b10_000000) {
+      } else if ((head & 0b10_000000) === 0b10_000000) {
         return this.decodeBytes(head);
-      } else if ((head & 0b010_00000) == 0b010_00000) {
+      } else if ((head & 0b010_00000) === 0b010_00000) {
         return this.decodeInt(head);
-      } else if ((head & 0b0011_0000) == 0b0011_0000) {
+      } else if ((head & 0b0011_0000) === 0b0011_0000) {
         return this.decodeObject(head);
-      } else if ((head & 0b0010_0000) == 0b0010_0000) {
+      } else if ((head & 0b0010_0000) === 0b0010_0000) {
         return this.decodeArray(head);
-      } else if ((head & 0b00001_000) == 0b00001_000) {
+      } else if ((head & 0b00001_000) === 0b00001_000) {
         switch (head) {
           // enum config
           case 0b00001000:
@@ -603,9 +633,10 @@ export class YajbeDecoder {
           // enum string
           case 0b00001001: return this.decodeEnumString(head);
           case 0b00001010: return this.decodeEnumString(head);
+          case 0b00001011: return this.decodeEnumString(head);
           default: throw new Error('unsupported item head ' + head.toString(2));
         }
-      } else if ((head & 0b000001_00) == 0b000001_00) {
+      } else if ((head & 0b000001_00) === 0b000001_00) {
         return this.decodeFloat(head);
       } else switch (head) {
         // null
@@ -619,7 +650,7 @@ export class YajbeDecoder {
   }
 
   private decodeInt(head: number): number {
-    const signed = (head & 0b011_00000) == 0b011_00000;
+    const signed = (head & 0b011_00000) === 0b011_00000;
 
     const w = head & 0b11111;
     if (w < 24) {
@@ -673,7 +704,7 @@ export class YajbeDecoder {
 
   private decodeArray(head: number): unknown[] | Array<unknown> {
     const w = head & 0b1111;
-    if (w == 0b1111) {
+    if (w === 0b1111) {
       const retArray: unknown[] = [];
       while (this.readHasMore()) {
         retArray.push(this.decodeItem());
@@ -691,7 +722,7 @@ export class YajbeDecoder {
 
   private decodeObject(head: number): {[key: string]: unknown} {
     const w = head & 0b1111;
-    if (w == 0b1111) {
+    if (w === 0b1111) {
       const retObject: {[key: string]: unknown} = {};
       while (this.readHasMore()) {
         const key = this.fieldNameReader.decodeString();
@@ -713,7 +744,7 @@ export class YajbeDecoder {
   // ====================================================================================================
   //  Enum/String related
   // ====================================================================================================
-  private enumMapping?: EnumLruMapping;
+  private enumMapping?: EnumMapping;
 
   private decodeEnumConfig(head: number): void {
     const h1 = this.buffer.readUint8();
@@ -722,6 +753,10 @@ export class YajbeDecoder {
         const minFreq = this.buffer.readUint8();
         const lruSize = 1 << (5 + (h1 & 0b1111));
         this.enumMapping = new EnumLruMapping(lruSize, 1 + minFreq);
+        break;
+      case 1: // ANY
+        const maxLength = 1 << (5 + (h1 & 0b1111));
+        this.enumMapping = new EnumAnyMappingReader(maxLength === 32 ? 0 : maxLength);
         break;
     }
   }
@@ -736,12 +771,17 @@ export class YajbeDecoder {
         const index = this.buffer.readUint(2);
         return this.enumMapping!.getAt(index);
       }
+      case 0b00001011: {
+        const index = this.buffer.readUint(3);
+        return this.enumMapping!.getAt(index);
+      }
       default:
         throw new Error("unsupported " + head.toString(2));
     }
   }
 }
 
+// ==============================================================================================================
 export class FieldNameWriter {
   private readonly indexedMap = new Map<string, number>();
   private readonly textEncoder: TextEncoder;
@@ -896,10 +936,11 @@ export class FieldNameReader {
   private readLength(head: number): number {
     const length = (head & 0b000_11111);
     if (length < 30) return length;
-    if (length == 30) return this.reader.readUint8() + 29;
+    if (length === 30) return this.reader.readUint8() + 29;
 
-    const b1 = this.reader.readUint8();
-    const b2 = this.reader.readUint8();
+    const reader = this.reader;
+    const b1 = reader.readUint8();
+    const b2 = reader.readUint8();
     return 284 + 256 * b1 + b2;
   }
 
@@ -924,8 +965,9 @@ export class FieldNameReader {
 
   private readPrefix(head: number): string {
     const length = this.readLength(head);
-    const prefix = this.reader.readUint8();
-    const kpart = this.reader.readUint8Array(length);
+    const reader = this.reader;
+    const prefix = reader.readUint8();
+    const kpart = reader.readUint8Array(length);
     const utf8 = new Uint8Array(prefix + length);
     utf8.set(this.lastKey.slice(0, prefix));
     utf8.set(kpart, prefix);
@@ -934,19 +976,73 @@ export class FieldNameReader {
 
   private readPrefixSuffix(head: number): string {
     const length = this.readLength(head);
-    const prefix = this.reader.readUint8();
-    const suffix = this.reader.readUint8();
-    const kpart = this.reader.readUint8Array(length);
+    const reader = this.reader;
+    const prefix = reader.readUint8();
+    const suffix = reader.readUint8();
+    const kpart = reader.readUint8Array(length);
     const utf8 = new Uint8Array(prefix + length + suffix);
-    utf8.set(this.lastKey.slice(0, prefix));
+    const lastKey = this.lastKey;
+    utf8.set(lastKey.slice(0, prefix));
     utf8.set(kpart, prefix);
-    utf8.set(this.lastKey.slice(this.lastKey.length - suffix), prefix + length);
+    utf8.set(lastKey.slice(lastKey.length - suffix), prefix + length);
     return this.addToIndex(utf8);
   }
 }
 
+// ==============================================================================================================
+interface EnumMapping {
+  getAt: (index: number) => string;
+  add: (key: string) => number;
+}
 
-export class EnumLruMapping {
+export class EnumAnyMappingWriter implements EnumMapping {
+  private readonly indexed = new Map<string, number>();
+  private readonly maxLength;
+
+  constructor(maxLength?: number) {
+    this.maxLength = maxLength ?? 0;
+  }
+
+  getAt(_: number): string {
+    throw new Error('unsupported operation')
+  }
+
+  add(key: string): number {
+    if (key.length < 2 || (this.maxLength > 0 && key.length > this.maxLength)) {
+      return -1;
+    }
+
+    const index = this.indexed.get(key);
+    if (index != null) return index;
+
+    const newIndex = this.indexed.size;
+    this.indexed.set(key, newIndex);
+    return -1;
+  }
+}
+
+export class EnumAnyMappingReader implements EnumMapping {
+  private readonly indexed: string[] = [];
+  private readonly maxLength;
+
+  constructor(maxLength: number) {
+    this.maxLength = maxLength;
+  }
+
+  getAt(index: number): string {
+    return this.indexed[index];
+  }
+
+  add(key: string): number {
+    if (key.length < 2 || (this.maxLength > 0 && key.length > this.maxLength)) {
+      return -1;
+    }
+    return this.indexed.push(key);
+  }
+}
+
+// ==============================================================================================================
+export class EnumLruMapping implements EnumMapping {
   readonly lruSize: number;
   readonly minFreq: number;
 
@@ -991,7 +1087,7 @@ export class EnumLruMapping {
     const root = this.buckets[bucketIndex];
     const item = this.findNode(root, key, hash);
     if (item == null) {
-      if (this.indexedCount == 0xff) return -1;
+      if (this.indexedCount === 0xff) return -1;
       this.buckets[bucketIndex] = this.addNode(key, hash, root);
       return -1;
     }
@@ -1002,7 +1098,7 @@ export class EnumLruMapping {
       return item.index;
     }
 
-    if (this.indexedCount == 0xff) return -1;
+    if (this.indexedCount === 0xff) return -1;
     return this.incFreq(item);
   }
 
@@ -1041,7 +1137,7 @@ export class EnumLruMapping {
       return -1;
     }
 
-    if (this.indexedCount == this.indexed.length) {
+    if (this.indexedCount === this.indexed.length) {
       this.resizeTable();
     }
 

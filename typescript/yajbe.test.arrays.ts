@@ -15,18 +15,18 @@
  * limitations under the License.
  */
 
-import { assertEquals } from 'https://deno.land/std/testing/asserts.ts';
-import * as hex from 'https://deno.land/std@0.178.0/encoding/hex.ts';
+import { assertEquals } from 'jsr:@std/assert';
+import { decodeHex, encodeHex } from 'jsr:@std/encoding';
 import * as YAJBE from './yajbe.ts';
 
 function assertArrayEncodeDecode(input: unknown, expectedHex: string) {
   const enc = YAJBE.encode(input);
-  assertEquals(new TextDecoder().decode(hex.encode(enc)), expectedHex);
+  assertEquals(encodeHex(enc), expectedHex);
   assertEquals(YAJBE.decode(enc), input);
 }
 
 function assertArrayDecode(expectedHex: string, input: unknown) {
-  const enc = hex.decode(new TextEncoder().encode(expectedHex));
+  const enc = decodeHex(expectedHex);
   assertEquals(YAJBE.decode(enc), input);
 }
 

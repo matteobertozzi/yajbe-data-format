@@ -15,10 +15,9 @@
  * limitations under the License.
  */
 
-import { assertEquals } from 'https://deno.land/std/testing/asserts.ts';
-import * as hex from 'https://deno.land/std@0.178.0/encoding/hex.ts';
+import { assertEquals } from 'jsr:@std/assert';
+import { encodeHex } from 'jsr:@std/encoding';
 import { FieldNameReader, FieldNameWriter, InMemoryBytesReader, InMemoryBytesWriter } from './yajbe.ts';
-import * as YAJBE from './yajbe.ts';
 
 function testFieldNamesEncodeDecode(fieldNames: string[], expectedHex: string): void {
   const writer = new InMemoryBytesWriter();
@@ -27,7 +26,7 @@ function testFieldNamesEncodeDecode(fieldNames: string[], expectedHex: string): 
     fieldsWriter.encodeString(fieldName);
   }
   writer.flush();
-  assertEquals(new TextDecoder().decode(hex.encode(writer.slice())), expectedHex);
+  assertEquals(encodeHex(writer.slice()), expectedHex);
 
   const reader = new InMemoryBytesReader(writer.slice());
   const fieldsReader = new FieldNameReader(reader, new TextDecoder());

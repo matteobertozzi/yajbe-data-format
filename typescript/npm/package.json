@@ -1,6 +1,6 @@
 {
   "name": "yajbe-dataformat",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "YAJBE is a compact binary data format built to be a drop-in replacement for JSON (JavaScript Object Notation).",
   "main": "dist/yajbe.js",
   "types": "dist/yajbe.d.ts",

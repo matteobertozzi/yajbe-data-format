@@ -26,3 +26,17 @@ const enc3: Uint8Array = YAJBE.encode([{a: "foooo"}, {a: "foooo"}, {a: "foooo"},
 const dec3 = YAJBE.decode(enc3); // [{a: "foooo"}, {a: "foooo"}, {a: "foooo"}, {a: "foooo"}]
 console.log(enc3);
 console.log(dec3);
+
+// options: identify common strings and avoid writing them every time
+const opts4: YAJBE.YajbeEncoderOptions = {enumConfig: { type: 'ANY' }};
+const enc4: Uint8Array = YAJBE.encode([{a: "aaaaa"}, {a: "bbbbb"}, {a: "aaaaa"}, {a: "bbbbb"}], opts4);
+const dec4 = YAJBE.decode(enc3); // [{a: "aaaaa"}, {a: "bbbbb"}, {a: "aaaaa"}, {a: "bbbbb"}]
+console.log(enc4);
+console.log(dec4);
+
+
+const data = ['aa', 'aa', 'aa', 'aa', 'bb', 'bb', 'bb'];
+console.log(YAJBE.encode(data));
+const enc5 = YAJBE.encode(data, { enumConfig: { type: 'ANY' }});
+console.log(enc5);
+console.log(YAJBE.decode(enc5));

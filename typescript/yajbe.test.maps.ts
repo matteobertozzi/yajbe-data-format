@@ -15,23 +15,23 @@
  * limitations under the License.
  */
 
-import { assertEquals } from 'https://deno.land/std/testing/asserts.ts';
-import * as hex from 'https://deno.land/std@0.178.0/encoding/hex.ts';
+import { assertEquals } from 'jsr:@std/assert';
+import { decodeHex, encodeHex } from 'jsr:@std/encoding';
 import * as YAJBE from './yajbe.ts';
 
 function assertEncodeDecode(input: unknown, expectedHex: string) {
   const enc = YAJBE.encode(input);
-  assertEquals(new TextDecoder().decode(hex.encode(enc)), expectedHex);
+  assertEquals(encodeHex(enc), expectedHex);
   assertEquals(YAJBE.decode(enc), input);
 }
 
 function assertEncode(input: unknown, expectedHex: string) {
   const enc = YAJBE.encode(input);
-  assertEquals(new TextDecoder().decode(hex.encode(enc)), expectedHex);
+  assertEquals(encodeHex(enc), expectedHex);
 }
 
 function assertDecode(expectedHex: string, input: unknown) {
-  const enc = hex.decode(new TextEncoder().encode(expectedHex));
+  const enc = decodeHex(expectedHex);
   assertEquals(YAJBE.decode(enc), input);
 }
 
@@ -82,20 +82,20 @@ Deno.test("map.testProvidedFields", () => {
   // encode/decode with fields already present in the map. the names will not be in the encoded data
   const obj = Object.fromEntries(input.entries());
   const enc = YAJBE.encode(input, options);
-  assertEquals("32a141a040", new TextDecoder().decode(hex.encode(enc)));
+  assertEquals("32a141a040", encodeHex(enc));
   const dec = YAJBE.decode(enc, options);
   assertEquals(obj, dec);
-  const decx = YAJBE.decode(hex.decode(new TextEncoder().encode("3fa141a04001")), options);
+  const decx = YAJBE.decode(decodeHex("3fa141a04001"), options);
   assertEquals(obj, decx);
 
   // encode/decode adding a fields not in the base list
   input.set('something new', 3);
   const obj2 = Object.fromEntries(input.entries());
   const enc2 = YAJBE.encode(input, options);
-  assertEquals("33a141a0408d736f6d657468696e67206e657742", new TextDecoder().decode(hex.encode(enc2)));
+  assertEquals("33a141a0408d736f6d657468696e67206e657742", encodeHex(enc2));
   const dec2 = YAJBE.decode(enc2, options);
   assertEquals(obj2, dec2);
-  const dec2x = YAJBE.decode(hex.decode(new TextEncoder().encode("3fa141a0408d736f6d657468696e67206e65774201")), options);
+  const dec2x = YAJBE.decode(decodeHex("3fa141a0408d736f6d657468696e67206e65774201"), options);
   assertEquals(obj2, dec2x);
 });
 
