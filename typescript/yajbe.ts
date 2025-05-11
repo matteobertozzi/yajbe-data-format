@@ -41,7 +41,7 @@ export function encode(value: unknown, options?: YajbeEncoderOptions): Uint8Arra
   const encoder = new YajbeEncoder(writer, options);
   encoder.encodeItem(value);
   encoder.flush();
-  return writer.slice();
+  return writer.subarray();
 }
 
 export function decode<T>(data: Uint8Array, options?: { fieldNames?: string[] }): T {
@@ -221,42 +221,6 @@ function encodeInt(buffer: Uint8Array, offset: number, value: number, width: num
   }
 }
 
-
-// ================================================================================================
-//  Float related
-// ================================================================================================
-function encodeFloat(buffer: Uint8Array, offset: number, value: number, width: number, bigEndian?: boolean): void {
-  switch (width) {
-    case 4: { // float32
-      new DataView(buffer.buffer, offset).setFloat32(0, value, !bigEndian);
-      return;
-    }
-    case 8: { // float64
-      new DataView(buffer.buffer, offset).setFloat64(0, value, !bigEndian);
-      return;
-    }
-    case 2: { // float16/vle-float
-      throw new Error("Not implemented encode float16/vle-float");
-    }
-  }
-  throw new Error("Not implemented width " + width);
-}
-
-function decodeFloat(buffer: Uint8Array, offset: number, width: number, bigEndian?: boolean): number {
-  switch (width) {
-    case 4: { // float32
-      return new DataView(buffer.buffer).getFloat32(offset, !bigEndian);
-    }
-    case 8: { // float64
-      return new DataView(buffer.buffer).getFloat64(offset, !bigEndian);
-    }
-    case 2: { // float16/vle-float
-      throw new Error("Not implemented decode float16/vle-float");
-    }
-  }
-  throw new Error("Not implemented decode float width " + width);
-}
-
 // ==============================================================================================================
 abstract class AbstractBytesReader implements BytesReader {
   abstract reset(): void;
@@ -264,34 +228,40 @@ abstract class AbstractBytesReader implements BytesReader {
   abstract peekUint8(): number;
   abstract readUint8(): number;
   abstract readUint8Array(_: number): Uint8Array;
+  abstract readDataView(_: number): DataView;
 
   constructor() {
     // no-op
   }
 
   readFloat16(bigEndian?: boolean): number {
-    const buf = this.readUint8Array(2);
-    return decodeFloat(buf, 0, 2, bigEndian);
+    // float16/vle-float
+    throw new Error("Not implemented decode float16/vle-float");
   }
 
   readFloat32(bigEndian?: boolean): number {
-    const buf = this.readUint8Array(4);
-    return decodeFloat(buf, 0, 4, bigEndian);
+    const buf = this.readDataView(4);
+    return buf.getFloat32(0, !bigEndian);
   }
 
   readFloat64(bigEndian?: boolean): number {
-    const buf = this.readUint8Array(8);
-    return decodeFloat(buf, 0, 8, bigEndian);
+    const buf = this.readDataView(8);
+    return buf.getFloat64(0, !bigEndian);
   }
 
   readUint(width: number, bigEndian?: boolean): number {
+    switch (width) {
+      case 1: return this.readUint8();
+      case 2: return this.readDataView(2).getUint16(0, !bigEndian);
+      case 4: return this.readDataView(4).getUint32(0, !bigEndian);
+    }
     const buf = this.readUint8Array(width);
     return decodeInt(buf, 0, width, bigEndian);
   }
 
-  readUint16(bigEndian?: boolean): number { return this.readUint(2, bigEndian); }
+  readUint16(bigEndian?: boolean): number { return this.readDataView(2).getUint16(0, !bigEndian); }
   readUint24(bigEndian?: boolean): number { return this.readUint(3, bigEndian); }
-  readUint32(bigEndian?: boolean): number { return this.readUint(4, bigEndian); }
+  readUint32(bigEndian?: boolean): number { return this.readDataView(4).getUint32(0, !bigEndian); }
   readUint40(bigEndian?: boolean): number { return this.readUint(5, bigEndian); }
   readUint48(bigEndian?: boolean): number { return this.readUint(6, bigEndian); }
   readUint56(bigEndian?: boolean): number { return this.readUint(7, bigEndian); }
@@ -308,24 +278,30 @@ export class InMemoryBytesReader extends AbstractBytesReader {
     this.offset = 0;
   }
 
-  reset(): void {
+  override reset(): void {
     this.offset = 0;
   }
 
-  hasMore(): boolean {
+  override hasMore(): boolean {
     return this.offset < this.buffer.length;
   }
 
-  peekUint8(): number {
+  override peekUint8(): number {
     return this.buffer[this.offset] & 0xff;
   }
 
-  readUint8(): number {
+  override readUint8(): number {
     return this.buffer[this.offset++] & 0xff;
   }
 
-  readUint8Array(nbytes: number): Uint8Array {
-    const data = this.buffer.slice(this.offset, this.offset + nbytes);
+  override readUint8Array(nbytes: number): Uint8Array {
+    const data = this.buffer.subarray(this.offset, this.offset + nbytes);
+    this.offset += nbytes;
+    return data;
+  }
+
+  override readDataView(nbytes: number): DataView {
+    const data = new DataView(this.buffer.buffer, this.offset, nbytes);
     this.offset += nbytes;
     return data;
   }
@@ -333,6 +309,9 @@ export class InMemoryBytesReader extends AbstractBytesReader {
 
 // ==============================================================================================================
 abstract class AbstractBytesWriter implements BytesWriter {
+  private readonly buf8 = new Uint8Array(8);
+  private readonly view8 = new DataView(this.buf8.buffer);
+
   abstract flush(): void;
   abstract writeUint8(_: number): void;
   abstract writeUint8Array(_: Uint8Array | ArrayLike<number> | number[]): void;
@@ -342,19 +321,17 @@ abstract class AbstractBytesWriter implements BytesWriter {
   }
 
   writeFloat32(value: number, bigEndian?: boolean): void {
-    const buf = new Uint8Array(4);
-    encodeFloat(buf, 0, value, 4, bigEndian);
-    this.writeUint8Array(buf);
+    this.view8.setFloat32(0, value, !bigEndian);
+    this.writeUint8Array(this.buf8.subarray(0, 4));
   }
 
   writeFloat64(value: number, bigEndian?: boolean): void {
-    const buf = new Uint8Array(8);
-    encodeFloat(buf, 0, value, 8, bigEndian);
-    this.writeUint8Array(buf);
+    this.view8.setFloat64(0, value, !bigEndian);
+    this.writeUint8Array(this.buf8);
   }
 
   writeUint(value: number, width: number, bigEndian?: boolean): void {
-    const buf = new Uint8Array(width);
+    const buf = this.buf8.subarray(0, width);
     encodeInt(buf, 0, value, width, bigEndian);
     this.writeUint8Array(buf);
   }
@@ -390,6 +367,10 @@ export class InMemoryBytesWriter extends AbstractBytesWriter {
     return this.buffer.slice(0, this.offset);
   }
 
+  subarray(): Uint8Array {
+    return this.buffer.subarray(0, this.offset);
+  }
+
   size(): number {
     return this.offset;
   }
@@ -397,28 +378,46 @@ export class InMemoryBytesWriter extends AbstractBytesWriter {
   writeUint8(value: number): void {
     const offset = this.offset++;
     if (offset >= this.buffer.length) {
-      this.grow(offset + 64);
+      this.grow(64);
     }
     this.buffer[offset] = value;
   }
 
   writeUint8Array(value: Uint8Array | ArrayLike<number> | number[]): void {
-    this.ensureSpace(value.length);
+    this.grow(value.length);
     this.buffer.set(value, this.offset);
     this.offset += value.length;
   }
 
-  ensureSpace(size: number): void {
-    const requiredLength = this.offset + size;
-    if (requiredLength <= this.buffer.length) return;
+  private grow(minimumAdditionalSpace: number): void {
+    const requiredTotalLength = this.offset + minimumAdditionalSpace;
 
-    // resize with 64bytes alignment
-    this.grow((requiredLength + (64 - 1)) & -64);
-  }
+    // If there's already enough space, return immediately.
+    const buffer = this.buffer;
+    if (requiredTotalLength <= buffer.length) {
+      return;
+    }
 
-  grow(newLength: number): void {
-    const newBuffer = new Uint8Array(newLength);
-    newBuffer.set(this.buffer);
+    // Calculate new capacity using an exponential growth factor (e.g., 1.5x or 2x).
+    // Start with a reasonable default (e.g., 64) if the buffer is initially empty.
+    let newCapacity = buffer.length === 0 ? 64 : Math.floor(buffer.length * 1.5);
+
+    // Ensure the new capacity is at least the required total length.
+    if (newCapacity < requiredTotalLength) {
+      newCapacity = requiredTotalLength;
+    }
+
+    // Apply 64-byte alignment. This is common for memory allocation patterns.
+    newCapacity = (newCapacity + (64 - 1)) & -64;
+
+    // Double-check if alignment somehow made it smaller than required (highly unlikely with this logic).
+    if (newCapacity < requiredTotalLength) {
+        newCapacity = requiredTotalLength;
+    }
+
+    const newBuffer = new Uint8Array(newCapacity);
+    // Only copy the part of the buffer that contains actual data.
+    newBuffer.set(buffer.subarray(0, this.offset));
     this.buffer = newBuffer;
   }
 }
@@ -510,6 +509,13 @@ export class YajbeEncoder extends DataEncoder {
     this.writeLength(0b0010_0000, 10, value.length);
     for (let i = 0; i < value.length; ++i) {
       this.encodeItem(value[i]);
+    }
+  }
+
+  protected override encodeSet(value: Set<unknown>): void {
+    this.writeLength(0b0010_0000, 10, value.size);
+    for (const item of value) {
+      this.encodeItem(item);
     }
   }
 
@@ -847,7 +853,7 @@ export class FieldNameWriter {
     const length = fieldName.length - prefix;
     this.writeLength(0b110_00000, length);
     writer.writeUint8(prefix);
-    writer.writeUint8Array(fieldName.slice(prefix));
+    writer.writeUint8Array(fieldName.subarray(prefix));
   }
 
   private writePrefixSuffix(fieldName: Uint8Array, prefix: number, suffix: number) {
@@ -857,7 +863,7 @@ export class FieldNameWriter {
     this.writeLength(0b111_00000, length);
     writer.writeUint8(prefix);
     writer.writeUint8(suffix);
-    writer.writeUint8Array(fieldName.slice(prefix, fieldName.length - suffix));
+    writer.writeUint8Array(fieldName.subarray(prefix, fieldName.length - suffix));
   }
 
   private writeLength(head: number, length: number) {
@@ -969,7 +975,7 @@ export class FieldNameReader {
     const prefix = reader.readUint8();
     const kpart = reader.readUint8Array(length);
     const utf8 = new Uint8Array(prefix + length);
-    utf8.set(this.lastKey.slice(0, prefix));
+    utf8.set(this.lastKey.subarray(0, prefix));
     utf8.set(kpart, prefix);
     return this.addToIndex(utf8);
   }
@@ -982,9 +988,9 @@ export class FieldNameReader {
     const kpart = reader.readUint8Array(length);
     const utf8 = new Uint8Array(prefix + length + suffix);
     const lastKey = this.lastKey;
-    utf8.set(lastKey.slice(0, prefix));
+    utf8.set(lastKey.subarray(0, prefix));
     utf8.set(kpart, prefix);
-    utf8.set(lastKey.slice(lastKey.length - suffix), prefix + length);
+    utf8.set(lastKey.subarray(lastKey.length - suffix), prefix + length);
     return this.addToIndex(utf8);
   }
 }
