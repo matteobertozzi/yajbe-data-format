@@ -31,7 +31,7 @@
 
   <properties>
     <yajbe.version>2.18.4</yajbe.version>
-    <jackson.version>2.18.4</jackson.version>
+    <jackson.version>2.19.0</jackson.version>
     <jackson.databind.version>2.18.2</jackson.databind.version>
     <jmh.version>1.37</jmh.version>
 

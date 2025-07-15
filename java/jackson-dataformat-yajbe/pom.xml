@@ -32,10 +32,10 @@
   </developers>
 
   <properties>
-    <jackson.version>2.18.4</jackson.version>
+    <jackson.version>2.19.0</jackson.version>
 
     <junit.version>5.12.2</junit.version>
-    <maven.gpg.version>3.2.7</maven.gpg.version>
+    <maven.gpg.version>3.2.8</maven.gpg.version>
     <maven.jar.version>3.4.2</maven.jar.version>
     <maven.compiler.version>3.14.0</maven.compiler.version>
     <maven.source.version>3.3.1</maven.source.version>
