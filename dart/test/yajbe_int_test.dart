@@ -30,6 +30,8 @@ void main() {
       assertEncodeDecode(7, "46");
       assertEncodeDecode(24, "57");
       assertEncodeDecode(25, "5800");
+      assertEncodeDecode(127, "5866");
+      assertEncodeDecode(128, "5867");
       assertEncodeDecode(0xff, "58e6");
       assertEncodeDecode(0xffff, "59e6ff");
       assertEncodeDecode(0xffffff, "5ae6ffff");

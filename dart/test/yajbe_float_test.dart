@@ -20,7 +20,7 @@ import 'package:convert/convert.dart';
 import 'package:test/test.dart';
 import 'package:yajbe/yajbe.dart';
 
-void expectAlmostEquals(a, b) {
+void expectAlmostEquals(double a, double b) {
   expect((a - b).abs() < 0.000001, true);
 }
 
