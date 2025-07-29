@@ -36,63 +36,62 @@ var valueLookup [256]lookupEntry
 
 func init() {
 	// Initialize the lookup table
-	
+
 	// Fixed values
-	valueLookup[0] = lookupEntry{value: nil, kind: 0}           // null
-	valueLookup[1] = lookupEntry{value: "EOF", kind: 0}         // EOF
-	valueLookup[2] = lookupEntry{value: false, kind: 0}         // false
-	valueLookup[3] = lookupEntry{value: true, kind: 0}          // true
-	
+	valueLookup[0] = lookupEntry{value: nil, kind: 0}   // null
+	valueLookup[1] = lookupEntry{value: "EOF", kind: 0} // EOF
+	valueLookup[2] = lookupEntry{value: false, kind: 0} // false
+	valueLookup[3] = lookupEntry{value: true, kind: 0}  // true
+
 	// Small positive integers (0x40-0x57): values 1-24
 	for i := 0x40; i <= 0x57; i++ {
 		value := 1 + (i - 0x40)
 		valueLookup[i] = lookupEntry{value: value, kind: 0}
 	}
-	
+
 	// Small negative integers (0x60-0x77): values 0 to -23
 	for i := 0x60; i <= 0x77; i++ {
 		value := -(i - 0x60)
 		valueLookup[i] = lookupEntry{value: value, kind: 0}
 	}
-	
+
 	// Larger positive integers (0x58-0x5F)
 	for i := 0x58; i <= 0x5F; i++ {
 		valueLookup[i] = lookupEntry{value: nil, kind: 1} // intPos
 	}
-	
+
 	// Larger negative integers (0x78-0x7F)
 	for i := 0x78; i <= 0x7F; i++ {
 		valueLookup[i] = lookupEntry{value: nil, kind: 2} // intNeg
 	}
-	
+
 	// Special types
 	valueLookup[0x05] = lookupEntry{value: nil, kind: 3} // float32
 	valueLookup[0x06] = lookupEntry{value: nil, kind: 4} // float64
 	valueLookup[0x07] = lookupEntry{value: nil, kind: 5} // bigDecimal
-	
+
 	// Bytes (0x80-0xBF)
 	for i := 0x80; i <= 0xBF; i++ {
 		valueLookup[i] = lookupEntry{value: nil, kind: 6} // bytes
 	}
-	
+
 	// Strings (0xC0-0xFF)
 	for i := 0xC0; i <= 0xFF; i++ {
 		valueLookup[i] = lookupEntry{value: nil, kind: 7} // string
 	}
-	
+
 	// Arrays (0x20-0x2E, 0x2F)
 	for i := 0x20; i <= 0x2E; i++ {
 		valueLookup[i] = lookupEntry{value: nil, kind: 8} // array
 	}
 	valueLookup[0x2F] = lookupEntry{value: nil, kind: 8} // array
-	
+
 	// Objects (0x30-0x3E, 0x3F)
 	for i := 0x30; i <= 0x3E; i++ {
 		valueLookup[i] = lookupEntry{value: nil, kind: 9} // object
 	}
 	valueLookup[0x3F] = lookupEntry{value: nil, kind: 9} // object
 }
-
 
 type Reader struct {
 	data []byte
@@ -193,12 +192,12 @@ func (r *Reader) ReadValue() (any, error) {
 	}
 
 	entry := valueLookup[head]
-	
+
 	// Fast path: pre-computed value
 	if entry.value != nil || entry.kind == 0 {
 		return entry.value, nil
 	}
-	
+
 	// Dispatch to specific decoder based on kind
 	switch entry.kind {
 	case 1: // intPos
@@ -223,7 +222,6 @@ func (r *Reader) ReadValue() (any, error) {
 		return nil, fmt.Errorf("unknown type header: 0x%02x", head)
 	}
 }
-
 
 func (r *Reader) decodeIntPositive(head byte) (any, error) {
 	w := int(head & 0b11111)
@@ -430,8 +428,10 @@ func (r *Reader) decodeObject(head byte) (any, error) {
 			}
 			if keyStr, ok := key.(string); ok {
 				result[keyStr] = value
+			} else if keyBytes, ok := key.([]byte); ok {
+				result[string(keyBytes)] = value
 			} else {
-				return nil, fmt.Errorf("object key must be string, got %T", key)
+				return nil, fmt.Errorf("object key must be string, got %T %v", key, key)
 			}
 		}
 		return result, nil
@@ -454,8 +454,10 @@ func (r *Reader) decodeObject(head byte) (any, error) {
 		}
 		if keyStr, ok := key.(string); ok {
 			result[keyStr] = value
+		} else if keyBytes, ok := key.([]byte); ok {
+			result[string(keyBytes)] = value
 		} else {
-			return nil, fmt.Errorf("object key must be string, got %T", key)
+			return nil, fmt.Errorf("object key must be string, got %T %v", key, key)
 		}
 	}
 
